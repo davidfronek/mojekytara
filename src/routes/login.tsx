@@ -94,7 +94,7 @@ function LoginPage() {
         </div>
 
         {/* Formulář */}
-        <div className="bg-white border border-stone-200 rounded-2xl shadow-sm overflow-hidden">
+        <div className="bg-white border border-stone-200 rounded-2xl shadow-sm overflow-hidden mt-9">
 
           {/* Tabs */}
           <div className="flex border-b border-stone-200">
