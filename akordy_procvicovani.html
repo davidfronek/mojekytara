@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kytarové akordy – Procvičování</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; background: #f2f2f2; color: #111; min-height: 100vh; }
+
+header {
+  background: #111; color: #fff;
+  padding: 14px 28px;
+  display: flex; align-items: center; gap: 16px;
+}
+header h1 { font-size: 20px; font-weight: bold; letter-spacing: 1px; }
+
+/* ======= SETUP PANEL ======= */
+#setup-panel { padding: 24px; max-width: 880px; margin: 0 auto; }
+
+.section { margin-bottom: 28px; }
+.section h2 {
+  font-size: 15px; font-weight: bold; color: #444;
+  text-transform: uppercase; letter-spacing: 1px;
+  margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid #ddd;
+}
+
+.chord-cards { display: flex; gap: 14px; flex-wrap: wrap; }
+.chord-card {
+  cursor: pointer; border: 2px solid #eee; border-radius: 8px;
+  padding: 8px 8px 7px; text-align: center; transition: all 0.15s;
+  background: #fff; width: 110px; flex-shrink: 0; user-select: none;
+  position: relative;
+}
+.chord-card:hover { border-color: #111; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+.chord-card svg { display: block; width: 100%; height: auto; margin-bottom: 4px; }
+.chord-card .cn { font-weight: bold; font-size: 14px; }
+.chord-card .cs { font-size: 10px; color: #999; }
+.chord-card .ca { font-size: 10px; color: #bbb; margin-top: 3px; }
+.chord-card .cplay { display: inline-block; margin-left: 6px; font-size: 11px; padding: 1px 6px; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; background: #fff; vertical-align: middle; }
+.chord-card .cplay:hover { background: #111; color: #fff; border-color: #111; }
+.chord-card .cdel { display:none; position:absolute; top:3px; right:4px; font-size:13px; line-height:1; color:#ccc; cursor:pointer; padding:1px 3px; border-radius:3px; }
+.chord-card:hover .cdel { display:block; }
+.chord-card .cdel:hover { color:#c00; background:#fee; }
+.chord-card-add {
+  cursor: pointer; border: 2px dashed #ddd; border-radius: 8px;
+  padding: 8px; text-align: center; background: #fafafa;
+  width: 110px; flex-shrink: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; min-height: 80px;
+  color: #bbb; font-size: 13px; transition: all 0.15s; user-select: none;
+}
+.chord-card-add:hover { border-color: #111; color: #111; background: #f5f5f5; }
+.chord-card-add .add-icon { font-size: 26px; line-height: 1; margin-bottom: 4px; }
+
+/* Custom chord dialog */
+.modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:100; align-items:center; justify-content:center; }
+.modal-bg.open { display:flex; }
+.modal { background:#fff; border-radius:10px; padding:24px 26px; width:340px; max-width:95vw; box-shadow:0 8px 40px rgba(0,0,0,0.25); }
+.modal h3 { font-size:16px; margin-bottom:16px; }
+.modal label { font-size:12px; color:#666; display:block; margin-bottom:3px; margin-top:10px; }
+.modal input[type=text] { width:100%; padding:8px 10px; font-size:14px; border:1.5px solid #ddd; border-radius:5px; }
+.modal input[type=text]:focus { outline:none; border-color:#111; }
+.fret-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin-top:8px; }
+.fret-grid label { font-size:10px; color:#888; text-align:center; margin:0; }
+.fret-grid input { width:100%; padding:4px; font-size:13px; border:1.5px solid #ddd; border-radius:4px; text-align:center; }
+.modal-hint { font-size:11px; color:#aaa; margin-top:6px; line-height:1.5; }
+.modal-hint code { background:#f0f0f0; padding:1px 4px; border-radius:3px; font-size:11px; }
+.modal-btns { display:flex; gap:8px; margin-top:18px; justify-content:flex-end; }
+.modal-btns button { padding:8px 18px; font-size:13px; font-weight:bold; border-radius:5px; cursor:pointer; border:1.5px solid #111; }
+.modal-btns .mbtn-ok { background:#111; color:#fff; }
+.modal-btns .mbtn-ok:hover { background:#333; }
+.modal-btns .mbtn-cancel { background:#fff; color:#111; }
+.modal-btns .mbtn-cancel:hover { background:#f0f0f0; }
+#custom-preview { margin:10px 0 0; display:flex; justify-content:center; min-height:60px; }
+
+.sequence-list {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  min-height: 50px; padding: 10px;
+  border: 1.5px dashed #ccc; border-radius: 6px; background: #fafafa;
+  align-items: center;
+}
+.seq-empty { color: #bbb; font-size: 13px; font-style: italic; }
+.seq-item {
+  display: flex; align-items: center; gap: 6px;
+  background: #111; color: #fff; border-radius: 6px;
+  padding: 6px 12px; font-weight: bold; font-size: 14px;
+}
+.seq-item .rx {
+  cursor: pointer; opacity: 0.5; font-size: 18px;
+  background: none; border: none; color: #fff; padding: 0 2px; line-height: 1;
+}
+.seq-item .rx:hover { opacity: 1; }
+
+.timing-row { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; flex-wrap: wrap; }
+.timing-row label { font-size: 14px; min-width: 180px; }
+.timing-row input[type=range] { width: 180px; cursor: pointer; }
+.timing-val { font-size: 16px; font-weight: bold; min-width: 50px; }
+.cb-row { display: flex; align-items: center; gap: 8px; font-size: 14px; margin-bottom: 8px; }
+.cb-row input { width: 15px; height: 15px; cursor: pointer; }
+
+select { padding: 5px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; cursor: pointer; }
+
+.start-btn {
+  display: block; width: 100%; max-width: 380px;
+  margin: 0 auto; padding: 15px;
+  font-size: 18px; font-weight: bold; letter-spacing: 1px;
+  background: #111; color: #fff; border: none; border-radius: 8px; cursor: pointer;
+  transition: background 0.15s;
+}
+.start-btn:hover { background: #333; }
+.start-btn:disabled { background: #ccc; cursor: not-allowed; }
+
+/* ======= PRACTICE PANEL ======= */
+#practice-panel { display: none; padding: 16px; max-width: 900px; margin: 0 auto; }
+
+.prac-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 12px;
+}
+.prac-info { font-size: 13px; color: #888; }
+
+.ctrl-btns { display: flex; gap: 8px; }
+.pbtn {
+  padding: 9px 20px; font-size: 14px; font-weight: bold;
+  border-radius: 6px; cursor: pointer; border: 2px solid #111;
+  transition: all 0.15s;
+}
+.pbtn-pause { background: #111; color: #fff; }
+.pbtn-pause:hover { background: #333; }
+.pbtn-stop { background: #fff; color: #111; }
+.pbtn-stop:hover { background: #f0f0f0; }
+
+/* Sequence dots */
+.seq-dots { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin-bottom: 10px; }
+.sd { width: 12px; height: 12px; border-radius: 50%; background: #ddd; border: 1px solid #ccc; transition: all 0.2s; }
+.sd.done { background: #999; border-color: #999; }
+.sd.active { background: #111; border-color: #111; transform: scale(1.3); }
+
+/* Progress bar */
+.prog-wrap { height: 7px; background: #ddd; border-radius: 4px; overflow: hidden; margin-bottom: 14px; }
+.prog-bar { height: 100%; background: #111; width: 0%; transition: width 0.1s linear; }
+
+/* Beat dots */
+.beat-row { display: flex; gap: 10px; justify-content: center; margin-bottom: 16px; }
+.bd {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: #ddd; border: 2px solid #ccc; transition: background 0.05s, transform 0.05s;
+}
+.bd.active { background: #111; border-color: #111; transform: scale(1.2); }
+
+/* Main chord area */
+.main-area {
+  display: grid; grid-template-columns: 1fr 40px 260px;
+  gap: 16px; align-items: center;
+}
+.cur-chord { text-align: center; cursor: pointer; }
+.cur-chord:hover::after { content: '▶ přehrát'; display: block; font-size: 11px; color: #bbb; margin-top: 2px; }
+.cur-chord .ct { font-size: 32px; font-weight: bold; margin-bottom: 2px; }
+.cur-chord .cs { font-size: 14px; color: #888; margin-bottom: 10px; }
+.cur-chord svg { display: block; margin: 0 auto; }
+
+.arrow-col { font-size: 32px; color: #ccc; text-align: center; }
+
+.nxt-chord { text-align: center; opacity: 0.55; }
+.nxt-label { font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+.nxt-chord .ct { font-size: 18px; font-weight: bold; margin-bottom: 2px; }
+.nxt-chord .cs { font-size: 11px; color: #aaa; margin-bottom: 8px; }
+.nxt-chord svg { display: block; margin: 0 auto; }
+
+/* Flash animation on chord change */
+@keyframes flash { 0%{opacity:0.2} 100%{opacity:1} }
+.flash { animation: flash 0.3s ease-out; }
+
+/* Keyboard hint */
+.kb-hint { text-align: center; font-size: 11px; color: #ccc; margin-top: 14px; }
+
+/* Song text section */
+.opt-badge { font-size: 11px; font-weight: normal; background: #eee; color: #888; padding: 2px 7px; border-radius: 10px; vertical-align: middle; text-transform: none; letter-spacing: 0; margin-left: 6px; }
+.section-hint { font-size: 13px; color: #888; margin-bottom: 10px; line-height: 1.5; }
+.section-hint code { background: #f0f0f0; padding: 1px 5px; border-radius: 3px; font-family: monospace; color: #333; font-size: 12px; }
+.insert-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.ibtn { padding: 5px 12px; font-size: 13px; font-weight: bold; font-family: monospace; border: 1.5px solid #ccc; border-radius: 4px; cursor: pointer; background: #fff; transition: all 0.12s; }
+.ibtn:hover { background: #111; color: #fff; border-color: #111; }
+#song-text { width: 100%; padding: 10px 12px; font-size: 14px; font-family: monospace; border: 1.5px solid #ddd; border-radius: 6px; resize: vertical; line-height: 1.7; min-height: 110px; }
+#song-text:focus { outline: none; border-color: #111; }
+.song-actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.action-btn { padding: 7px 16px; font-size: 13px; font-weight: bold; border-radius: 5px; cursor: pointer; border: 1.5px solid #111; background: #111; color: #fff; transition: all 0.15s; }
+.action-btn:hover { background: #333; }
+.action-btn.secondary { background: #fff; color: #111; }
+.action-btn.secondary:hover { background: #f0f0f0; }
+.preview-label { font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 1px; margin: 12px 0 6px; }
+.chord-chart-preview { background: #fafafa; border: 1px solid #eee; border-radius: 6px; padding: 14px 16px; }
+.song-display { margin-top: 18px; padding: 14px 16px; background: #fafafa; border: 1px solid #e8e8e8; border-radius: 8px; max-height: 230px; overflow-y: auto; }
+.chord-chart { font-size: 15px; }
+.song-line { display: flex; flex-wrap: wrap; align-items: flex-end; margin-bottom: 14px; min-height: 38px; }
+.song-line.empty-line { min-height: 4px; margin-bottom: 4px; }
+.seg { display: inline-flex; flex-direction: column; }
+.seg-cn { font-size: 13px; font-weight: bold; color: transparent; line-height: 1.3; min-height: 18px; padding-right: 5px; transition: color 0.15s; }
+.seg.has-chord .seg-cn { color: #bbb; }
+.seg.active .seg-cn { color: #111; font-size: 15px; }
+.seg.nxt .seg-cn { color: #777; }
+.seg-tx { font-size: 16px; white-space: pre; line-height: 1.5; }
+.seg.active .seg-tx { font-weight: bold; border-bottom: 3px solid #111; }
+.seg.nxt .seg-tx { border-bottom: 1px dashed #aaa; }
+.song-hint { font-size: 11px; color: #ccc; text-align: right; margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Kytarové akordy — Procvičování</h1>
+</header>
+
+<!-- Custom chord modal -->
+<div class="modal-bg" id="custom-modal">
+  <div class="modal">
+    <h3>Přidat vlastní akord</h3>
+    <label>Název (např. <code>F</code>, <code>Bm</code>, <code>G7</code>)</label>
+    <input type="text" id="cm-name" placeholder="F" oninput="previewCustomChord()" maxlength="8">
+    <label style="margin-top:12px">Polohy prstů (každá struna E A D G B e)</label>
+    <p class="modal-hint">Zadej číslo pražce (0 = prázdná, x = utlumená)</p>
+    <div class="fret-grid">
+      <label>E</label><label>A</label><label>D</label><label>G</label><label>B</label><label>e</label>
+      <input type="text" id="cm-s0" value="x" oninput="previewCustomChord()" maxlength="2">
+      <input type="text" id="cm-s1" value="x" oninput="previewCustomChord()" maxlength="2">
+      <input type="text" id="cm-s2" value="0" oninput="previewCustomChord()" maxlength="2">
+      <input type="text" id="cm-s3" value="0" oninput="previewCustomChord()" maxlength="2">
+      <input type="text" id="cm-s4" value="0" oninput="previewCustomChord()" maxlength="2">
+      <input type="text" id="cm-s5" value="0" oninput="previewCustomChord()" maxlength="2">
+    </div>
+    <div id="custom-preview"></div>
+    <div class="modal-btns">
+      <button class="mbtn-cancel" onclick="closeCustomModal()">Zrušit</button>
+      <button class="mbtn-ok" onclick="saveCustomChord()">Přidat akord</button>
+    </div>
+  </div>
+</div>
+
+<!-- =================== SETUP =================== -->
+<div id="setup-panel">
+
+  <div class="section">
+    <h2>1. Přidej akordy do sekvence</h2>
+    <div class="chord-cards" id="chord-cards"></div>
+  </div>
+
+  <div class="section">
+    <h2>2. Sekvence</h2>
+    <div class="sequence-list" id="seq-list">
+      <span class="seq-empty">Klikni na akord výše pro přidání...</span>
+    </div>
+    <div style="margin-top:8px;">
+      <button onclick="clearSeq()" style="padding:6px 14px;font-size:12px;border:1px solid #ccc;border-radius:4px;cursor:pointer;background:#fff;">Vymazat vše</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>3. Text písně <span class="opt-badge">nepovinné</span></h2>
+    <p class="section-hint">Vlož text s akordy ve formátu <code>[G]slovo slovo [D]jiné slovo</code>.<br>Nebo vlož text s akordy nad řádky (tabulatura) a použij <b>Převést z tabulatury</b>.<br>Sekvence k procvičování se aktualizuje automaticky při psaní.</p>
+    <div class="insert-btns" id="insert-btns"></div>
+    <textarea id="song-text" placeholder="[G]Byl jsem malý kluk&#10;[D]Když jsem poznal první lásku&#10;[A]Ona přišla ke mně [G]tenkrát&#10;[C]A já věděl [D]hned" oninput="updateSongPreview()"></textarea>
+    <div class="song-actions">
+      <button class="action-btn" onclick="loadFromText()">↓ Přejít na sekvenci</button>
+      <button class="action-btn secondary" onclick="convertAndLoad()" title="Převede formát s akordy nad textem (tabulatura) na inline formát [Akord]text">⇄ Převést z tabulatury</button>
+      <button class="action-btn secondary" onclick="clearSongText()">Vymazat text</button>
+    </div>
+    <div id="song-preview-wrap" style="display:none">
+      <div class="preview-label">Náhled:</div>
+      <div id="song-preview" class="chord-chart-preview chord-chart"></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>4. Časování a nastavení</h2>
+    <div class="timing-row">
+      <label>Sekund na akord:</label>
+      <input type="range" id="secs-slider" min="1" max="120" value="4" step="1" oninput="updateTiming()">
+      <span class="timing-val" id="secs-val">4 s</span>
+    </div>
+    <div class="timing-row">
+      <label>Doby na akord (beats):</label>
+      <select id="beats-sel">
+        <option value="1">1 doba</option>
+        <option value="2">2 doby</option>
+        <option value="4" selected>4 doby</option>
+        <option value="8">8 dob</option>
+      </select>
+    </div>
+    <div class="cb-row">
+      <input type="checkbox" id="metro-cb" checked>
+      <label for="metro-cb">Metronom – zvukový klik na každou dobu</label>
+    </div>
+    <div class="cb-row">
+      <input type="checkbox" id="chord-sound-cb" checked>
+      <label for="chord-sound-cb">Přehrát akord při každé změně (kytara)</label>
+    </div>
+    <div class="cb-row">
+      <input type="checkbox" id="loop-cb" checked>
+      <label for="loop-cb">Opakovat sekvenci ve smyčce</label>
+    </div>
+    <div class="cb-row">
+      <input type="checkbox" id="manual-cb">
+      <label for="manual-cb">Ruční přechod — <b>Mezerník / →</b> = další akord (bez časovače)</label>
+    </div>
+  </div>
+
+  <button class="start-btn" id="start-btn" onclick="startPractice()" disabled>▶&nbsp; Spustit procvičování</button>
+</div>
+
+<!-- =================== PRACTICE =================== -->
+<div id="practice-panel">
+  <div class="prac-header">
+    <span class="prac-info" id="prac-info"></span>
+    <div class="ctrl-btns">
+      <button class="pbtn pbtn-pause" id="pause-btn" onclick="togglePause()">⏸&nbsp; Pauza</button>
+      <button class="pbtn pbtn-stop" onclick="stopPractice()">⏹&nbsp; Zastavit</button>
+    </div>
+  </div>
+
+  <div class="seq-dots" id="seq-dots"></div>
+  <div class="prog-wrap"><div class="prog-bar" id="prog-bar"></div></div>
+  <div class="beat-row" id="beat-row"></div>
+
+  <div class="main-area">
+    <div class="cur-chord" id="cur-chord" onclick="if(ps) playChordSound(ps.seq[ps.idx], true)"></div>
+    <div class="arrow-col">→</div>
+    <div>
+      <div class="nxt-label" style="text-align:center;">Následující</div>
+      <div class="nxt-chord" id="nxt-chord"></div>
+    </div>
+  </div>
+
+  <div id="song-display" class="song-display" style="display:none">
+    <div id="song-content" class="chord-chart"></div>
+    <div class="song-hint">aktuální pozice tučně · následující přerušovaně</div>
+  </div>
+  <div class="kb-hint" id="kb-hint"></div>
+</div>
+
+<script>
+// ===================== CHORD DATA =====================
+const CHORDS = {
+  G: {
+    name: 'G Dur', notes: 'G · B · D',
+    strings: [
+      { muted:false, open:false, fret:3, finger:2 },
+      { muted:false, open:false, fret:2, finger:1 },
+      { muted:false, open:true,  fret:0, finger:0 },
+      { muted:false, open:true,  fret:0, finger:0 },
+      { muted:false, open:false, fret:3, finger:3 },
+      { muted:false, open:false, fret:3, finger:4 },
+    ]
+  },
+  A: {
+    name: 'A Dur', notes: 'A · C# · E',
+    strings: [
+      { muted:true,  open:false, fret:0, finger:0 },
+      { muted:false, open:true,  fret:0, finger:0 },
+      { muted:false, open:false, fret:2, finger:1 },
+      { muted:false, open:false, fret:2, finger:2 },
+      { muted:false, open:false, fret:2, finger:3 },
+      { muted:false, open:true,  fret:0, finger:0 },
+    ]
+  },
+  C: {
+    name: 'C Dur', notes: 'C · E · G',
+    strings: [
+      { muted:true,  open:false, fret:0, finger:0 },
+      { muted:false, open:false, fret:3, finger:3 },
+      { muted:false, open:false, fret:2, finger:2 },
+      { muted:false, open:true,  fret:0, finger:0 },
+      { muted:false, open:false, fret:1, finger:1 },
+      { muted:false, open:true,  fret:0, finger:0 },
+    ]
+  },
+  D: {
+    name: 'D Dur', notes: 'D · F# · A',
+    strings: [
+      { muted:true,  open:false, fret:0, finger:0 },
+      { muted:true,  open:false, fret:0, finger:0 },
+      { muted:false, open:true,  fret:0, finger:0 },
+      { muted:false, open:false, fret:2, finger:1 },
+      { muted:false, open:false, fret:3, finger:3 },
+      { muted:false, open:false, fret:2, finger:2 },
+    ]
+  },
+  E: {
+    name: 'E Dur', notes: 'E · G# · B',
+    strings: [
+      { muted:false, open:true,  fret:0, finger:0 },
+      { muted:false, open:false, fret:2, finger:2 },
+      { muted:false, open:false, fret:2, finger:3 },
+      { muted:false, open:false, fret:1, finger:1 },
+      { muted:false, open:true,  fret:0, finger:0 },
+      { muted:false, open:true,  fret:0, finger:0 },
+    ]
+  },
+  Em: {
+    name: 'E mol', notes: 'E · G · B',
+    strings: [
+      { muted:false, open:true,  fret:0, finger:0 },
+      { muted:false, open:false, fret:2, finger:2 },
+      { muted:false, open:false, fret:2, finger:3 },
+      { muted:false, open:true,  fret:0, finger:0 },
+      { muted:false, open:true,  fret:0, finger:0 },
+      { muted:false, open:true,  fret:0, finger:0 },
+    ]
+  },
+  Am: {
+    name: 'A mol', notes: 'A · C · E',
+    strings: [
+      { muted:true,  open:false, fret:0, finger:0 },
+      { muted:false, open:true,  fret:0, finger:0 },
+      { muted:false, open:false, fret:2, finger:2 },
+      { muted:false, open:false, fret:2, finger:3 },
+      { muted:false, open:false, fret:1, finger:1 },
+      { muted:false, open:true,  fret:0, finger:0 },
+    ]
+  },
+  Dm: {
+    name: 'D mol', notes: 'D · F · A',
+    strings: [
+      { muted:true,  open:false, fret:0, finger:0 },
+      { muted:true,  open:false, fret:0, finger:0 },
+      { muted:false, open:true,  fret:0, finger:0 },
+      { muted:false, open:false, fret:2, finger:2 },
+      { muted:false, open:false, fret:3, finger:3 },
+      { muted:false, open:false, fret:1, finger:1 },
+    ]
+  },
+  A7: {
+    name: 'A7', notes: 'A · C# · E · G',
+    strings: [
+      { muted:true,  open:false, fret:0, finger:0 },
+      { muted:false, open:true,  fret:0, finger:0 },
+      { muted:false, open:false, fret:2, finger:2 },
+      { muted:false, open:true,  fret:0, finger:0 },
+      { muted:false, open:false, fret:2, finger:3 },
+      { muted:false, open:true,  fret:0, finger:0 },
+    ]
+  },
+  D7: {
+    name: 'D7', notes: 'D · F# · A · C',
+    strings: [
+      { muted:true,  open:false, fret:0, finger:0 },
+      { muted:true,  open:false, fret:0, finger:0 },
+      { muted:false, open:true,  fret:0, finger:0 },
+      { muted:false, open:false, fret:2, finger:2 },
+      { muted:false, open:false, fret:1, finger:1 },
+      { muted:false, open:false, fret:2, finger:3 },
+    ]
+  },
+  E7: {
+    name: 'E7', notes: 'E · G# · B · D',
+    strings: [
+      { muted:false, open:true,  fret:0, finger:0 },
+      { muted:false, open:false, fret:2, finger:2 },
+      { muted:false, open:false, fret:2, finger:3 },
+      { muted:false, open:false, fret:1, finger:1 },
+      { muted:false, open:true,  fret:0, finger:0 },
+      { muted:false, open:false, fret:2, finger:4 },
+    ]
+  },
+  B7: {
+    name: 'B7', notes: 'B · D# · F# · A',
+    strings: [
+      { muted:true,  open:false, fret:0, finger:0 },
+      { muted:false, open:false, fret:2, finger:2 },
+      { muted:false, open:false, fret:1, finger:1 },
+      { muted:false, open:false, fret:2, finger:3 },
+      { muted:false, open:true,  fret:0, finger:0 },
+      { muted:false, open:false, fret:2, finger:4 },
+    ]
+  },
+};
+
+const STR_NAMES = ['E','A','D','G','B','e'];
+
+// Frequencies (Hz) for each chord's sounding strings (low→high, muted strings omitted)
+// Computed from standard tuning E2=82.41 Hz, each fret × 2^(1/12)
+const CHORD_FREQS = {
+  G:  [98.00, 123.47, 146.83, 196.00, 293.66, 392.00],
+  A:  [110.00, 164.81, 220.00, 277.18, 329.63],
+  C:  [130.81, 164.81, 196.00, 261.63, 329.63],
+  D:  [146.83, 220.00, 293.66, 369.99],
+  E:  [82.41, 123.47, 164.81, 207.65, 246.94, 329.63],
+  Em: [82.41, 123.47, 164.81, 196.00, 246.94, 329.63],
+  Am: [110.00, 164.81, 220.00, 261.63, 329.63],
+  Dm: [146.83, 220.00, 293.66, 349.23],
+  A7: [110.00, 164.81, 196.00, 277.18, 329.63],
+  D7: [146.83, 220.00, 246.94, 329.63],
+  E7: [82.41, 123.47, 164.81, 207.65, 246.94, 369.99],
+  B7: [123.47, 155.56, 220.00, 246.94, 369.99],
+};
+
+// Normalize variant spellings to canonical CHORDS keys
+// e.g. "Emi" → "Em",  "Ami" → "Am",  "Hmi" → "Am" etc.
+const CHORD_ALIASES = {
+  Emi:'Em', Emin:'Em', Emolle:'Em',
+  Ami:'Am', Amin:'Am', Amolle:'Am',
+  Dmi:'Dm', Dmin:'Dm', Dmolle:'Dm',
+  Hmi:'Bm', Hmin:'Bm',
+  H:'B', H7:'B7',
+};
+function normalizeChord(name) {
+  return CHORD_ALIASES[name] || name;
+}
+
+// ===================== SVG DRAWING =====================
+function drawChord(key, large) {
+  if (!CHORDS[key]) {
+    const W = large ? 280 : 148, H = large ? 250 : 134;
+    return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg"><rect width="${W}" height="${H}" fill="#f5f5f5" rx="8" stroke="#ddd" stroke-width="1"/><text x="${W/2}" y="${H/2+14}" text-anchor="middle" font-size="${large?52:26}" font-family="Arial" font-weight="bold" fill="#ccc">${key}</text></svg>`;
+  }
+  const ch = CHORDS[key];
+  const W  = large ? 280 : 148;
+  const H  = large ? 250 : 134;
+  const pL = large ? 36  : 22;
+  const pR = large ? 28  : 18;
+  const pT = large ? 46  : 28;
+  const pB = large ? 24  : 16;
+  const bW = W - pL - pR;
+  const bH = H - pT - pB;
+  const ss = bW / 5;          // string spacing
+  const fs = bH / 4;          // fret spacing
+  const dr = large ? 15 : 8;  // dot radius
+  const tf = large ? 13 : 8;  // text font size
+  const sn = large ? 12 : 7;  // string name font size
+  const mr = large ? 7  : 4;  // marker radius (open/muted)
+  const nh = large ? 7  : 4;  // nut height
+
+  let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="Arial,sans-serif">`;
+
+  // Board
+  s += `<rect x="${pL}" y="${pT}" width="${bW}" height="${bH}" fill="#fff" stroke="#000" stroke-width="1.5" rx="2"/>`;
+  // Nut
+  s += `<rect x="${pL}" y="${pT}" width="${bW}" height="${nh}" fill="#333" rx="1"/>`;
+  // Frets
+  for (let i = 1; i <= 4; i++) {
+    const y = pT + i * fs;
+    s += `<line x1="${pL}" y1="${y}" x2="${pL+bW}" y2="${y}" stroke="#bbb" stroke-width="1"/>`;
+  }
+  // Strings
+  for (let i = 0; i < 6; i++) {
+    const x = pL + i * ss;
+    const sw = Math.max(1, 2.5 - i * 0.25);
+    s += `<line x1="${x}" y1="${pT}" x2="${x}" y2="${pT+bH}" stroke="#555" stroke-width="${sw}"/>`;
+  }
+  // Fret numbers right side
+  for (let i = 1; i <= 4; i++) {
+    const y = pT + (i - 0.5) * fs + 4;
+    s += `<text x="${pL+bW+6}" y="${y}" font-size="${sn}" fill="#aaa">${i}</text>`;
+  }
+  // Per string: name + marker + dot
+  for (let i = 0; i < 6; i++) {
+    const str = ch.strings[i];
+    const x = pL + i * ss;
+    // Name
+    s += `<text x="${x}" y="${pT-24}" text-anchor="middle" font-size="${sn}" font-weight="bold" fill="#333">${STR_NAMES[i]}</text>`;
+    // Marker above nut
+    if (str.muted) {
+      s += `<line x1="${x-mr}" y1="${pT-15}" x2="${x+mr}" y2="${pT-15+mr*2}" stroke="#111" stroke-width="2"/>`;
+      s += `<line x1="${x+mr}" y1="${pT-15}" x2="${x-mr}" y2="${pT-15+mr*2}" stroke="#111" stroke-width="2"/>`;
+    } else if (str.open) {
+      s += `<circle cx="${x}" cy="${pT-11}" r="${mr}" fill="none" stroke="#333" stroke-width="1.8"/>`;
+    }
+    // Finger dot
+    if (!str.muted && !str.open && str.fret > 0) {
+      const fy = pT + (str.fret - 0.5) * fs;
+      s += `<circle cx="${x}" cy="${fy}" r="${dr}" fill="#111"/>`;
+      s += `<text x="${x}" y="${fy + tf*0.38}" text-anchor="middle" font-size="${tf}" font-weight="bold" fill="#fff">${str.finger}</text>`;
+    }
+  }
+  s += '</svg>';
+  return s;
+}
+
+// ===================== SONG TEXT =====================
+let songParsed = null;
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function parseChordText(text) {
+  const lines = text.split('\n');
+  let gci = 0;
+  return lines.map(line => {
+    const segs = [];
+    const re = /\[([A-Za-z#b0-9]+)\]/g;
+    let last = 0, m;
+    while ((m = re.exec(line)) !== null) {
+      const before = line.slice(last, m.index);
+      if (segs.length > 0 && segs[segs.length-1].chord !== null) {
+        segs[segs.length-1].text += before;
+      } else if (before) {
+        segs.push({ chord: null, text: before, ci: null });
+      }
+      segs.push({ chord: normalizeChord(m[1]), text: '', ci: gci++ });
+      last = re.lastIndex;
+    }
+    const rem = line.slice(last);
+    if (rem) {
+      if (segs.length > 0) segs[segs.length-1].text += rem;
+      else segs.push({ chord: null, text: rem, ci: null });
+    }
+    return segs;
+  });
+}
+
+function renderChordChart(parsed, activeCi, nextCi) {
+  return parsed.map(line => {
+    if (!line.length || (line.length === 1 && !line[0].chord && !line[0].text.trim()))
+      return '<div class="song-line empty-line"></div>';
+    const segsHtml = line.map(seg => {
+      let cls = 'seg';
+      if (seg.chord) {
+        cls += ' has-chord';
+        if (seg.ci === activeCi) cls += ' active';
+        else if (seg.ci === nextCi) cls += ' nxt';
+      }
+      const cn = seg.chord ? `<span class="seg-cn">${escHtml(seg.chord)}</span>` : '<span class="seg-cn"></span>';
+      const tx = seg.text ? `<span class="seg-tx">${escHtml(seg.text)}</span>` : '';
+      return `<span class="${cls}">${cn}${tx}</span>`;
+    }).join('');
+    return `<div class="song-line">${segsHtml}</div>`;
+  }).join('');
+}
+
+function updateSongPreview() {
+  const text = document.getElementById('song-text').value.trim();
+  const wrap = document.getElementById('song-preview-wrap');
+  if (!text) {
+    wrap.style.display = 'none';
+    return;
+  }
+  wrap.style.display = 'block';
+  songParsed = parseChordText(text);
+  document.getElementById('song-preview').innerHTML = renderChordChart(songParsed, -1, -1);
+  // Auto-populate sequence from text
+  const chords = [];
+  songParsed.forEach(line => line.forEach(seg => { if (seg.chord) chords.push(seg.chord); }));
+  if (chords.length) {
+    seq = chords;
+    renderSeq();
+    document.getElementById('start-btn').disabled = false;
+  }
+}
+
+function loadFromText() {
+  // Now just scrolls to the sequence (auto-populated by updateSongPreview)
+  updateSongPreview();
+  document.getElementById('seq-list').scrollIntoView({ behavior: 'smooth' });
+}
+
+function clearSongText() {
+  document.getElementById('song-text').value = '';
+  songParsed = null;
+  document.getElementById('song-preview-wrap').style.display = 'none';
+}
+
+function convertTabFormat(text) {
+  // Detects lines that contain only chord names (e.g. "   D    G    Emi") and
+  // merges them into the following lyric line as inline [Chord] markers.
+  const chordToken = /^[A-G](#|b)?(m(aj|in|i)?|M(aj)?|dim|aug|sus[24]?|add[0-9]?|dom)?[2-9]?(\/[A-G](#|b)?)?$/;
+
+  function isChordLine(line) {
+    const trimmed = line.trim();
+    if (!trimmed) return false;
+    const tokens = trimmed.split(/\s+/);
+    return tokens.length >= 1 && tokens.every(t => chordToken.test(t));
+  }
+
+  function mergeChordsIntoLyric(chordLine, lyricLine) {
+    const re = /[A-G](#|b)?(m|M|maj|min|dim|aug|sus|sus2|sus4|add|dom)?[2-9]?(\/[A-G](#|b)?)?/g;
+    const chords = [];
+    let m;
+    while ((m = re.exec(chordLine)) !== null) chords.push({ pos: m.index, name: m[0] });
+    if (!chords.length) return lyricLine;
+
+    // Pad lyric line so all chord positions are valid
+    let lyric = lyricLine;
+    while (lyric.length < chords[chords.length - 1].pos) lyric += ' ';
+
+    // Insert markers right-to-left to keep earlier positions intact
+    for (let k = chords.length - 1; k >= 0; k--) {
+      const pos = Math.min(chords[k].pos, lyric.length);
+      lyric = lyric.slice(0, pos) + '[' + normalizeChord(chords[k].name) + ']' + lyric.slice(pos);
+    }
+    return lyric.trimEnd();
+  }
+
+  const lines = text.split('\n');
+  const out = [];
+  let i = 0;
+  while (i < lines.length) {
+    if (isChordLine(lines[i])) {
+      const lyricLine = (i + 1 < lines.length) ? lines[i + 1] : '';
+      out.push(mergeChordsIntoLyric(lines[i], lyricLine));
+      i += 2;
+    } else {
+      out.push(lines[i]);
+      i++;
+    }
+  }
+  return out.join('\n');
+}
+
+function convertAndLoad() {
+  const ta = document.getElementById('song-text');
+  const converted = convertTabFormat(ta.value);
+  ta.value = converted;
+  updateSongPreview();
+}
+
+function renderInsertBtns() {
+  const wrap = document.getElementById('insert-btns');
+  Object.keys(CHORDS).forEach(k => {
+    const b = document.createElement('button');
+    b.className = 'ibtn';
+    b.textContent = '[' + k + ']';
+    b.title = CHORDS[k].name;
+    b.onclick = () => {
+      const ta = document.getElementById('song-text');
+      const pos = ta.selectionStart;
+      const marker = '[' + k + ']';
+      ta.value = ta.value.slice(0, pos) + marker + ta.value.slice(pos);
+      ta.setSelectionRange(pos + marker.length, pos + marker.length);
+      ta.focus();
+      updateSongPreview();
+    };
+    wrap.appendChild(b);
+  });
+}
+
+// ===================== CUSTOM CHORD =====================
+function openCustomModal() {
+  document.getElementById('custom-modal').classList.add('open');
+  document.getElementById('cm-name').focus();
+  previewCustomChord();
+}
+function closeCustomModal() {
+  document.getElementById('custom-modal').classList.remove('open');
+}
+
+function parseCustomStrings() {
+  return [0,1,2,3,4,5].map(i => {
+    const v = document.getElementById('cm-s'+i).value.trim().toLowerCase();
+    if (v === 'x' || v === '') return { muted:true,  open:false, fret:0, finger:0 };
+    const f = parseInt(v);
+    if (isNaN(f) || f < 0) return { muted:true, open:false, fret:0, finger:0 };
+    if (f === 0) return { muted:false, open:true,  fret:0, finger:0 };
+    return { muted:false, open:false, fret:f, finger:f }; // finger = fret as placeholder
+  });
+}
+
+function previewCustomChord() {
+  const key = document.getElementById('cm-name').value.trim() || '?';
+  const strings = parseCustomStrings();
+  // Temporarily patch CHORDS for preview
+  const prev = CHORDS[key];
+  CHORDS[key] = { name: key, notes: '', strings };
+  document.getElementById('custom-preview').innerHTML = drawChord(key, false);
+  if (prev === undefined) delete CHORDS[key]; else CHORDS[key] = prev;
+}
+
+function saveCustomChord() {
+  const key = document.getElementById('cm-name').value.trim();
+  if (!key) { alert('Zadej název akordu.'); return; }
+  const strings = parseCustomStrings();
+  const frets = strings.filter(s => !s.muted && !s.open).map(s => s.fret);
+  const minF = frets.length ? Math.min(...frets) : 0;
+  const maxF = frets.length ? Math.max(...frets) : 0;
+  // Auto-assign fingers: sort sounding strings by fret asc, assign 1..4
+  const toFinger = strings
+    .map((s,i) => ({...s, i}))
+    .filter(s => !s.muted && !s.open)
+    .sort((a,b) => a.fret - b.fret);
+  let nextFinger = 1;
+  const fingers = {};
+  toFinger.forEach(s => { fingers[s.i] = nextFinger <= 4 ? nextFinger++ : 4; });
+  const finalStrings = strings.map((s, i) => s.muted || s.open ? s : { ...s, finger: fingers[i] ?? 1 });
+  CHORDS[key] = { name: key, notes: '', strings: finalStrings };
+  closeCustomModal();
+  renderCards();
+  renderInsertBtns();
+}
+
+// Close modal on background click
+document.getElementById('custom-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('custom-modal')) closeCustomModal();
+});
+
+// ===================== SEQUENCE =====================
+let seq = [];
+
+function renderCards() {
+  const c = document.getElementById('chord-cards');
+  c.innerHTML = '';
+  Object.keys(CHORDS).forEach(k => {
+    const ch = CHORDS[k];
+    const d = document.createElement('div');
+    d.className = 'chord-card';
+    d.innerHTML = `<span class="cdel" title="Odebrat akord ze seznamu" onclick="event.stopPropagation();deleteChord('${k}')">✕</span>${drawChord(k,false)}<div class="cn">${ch.name}</div><div class="cs">${ch.notes}</div><div class="ca">+ přidat <span class="cplay" title="Přehrát akord" onclick="event.stopPropagation();playChordSound('${k}',true)">▶</span></div>`;
+    d.onclick = () => addChord(k);
+    c.appendChild(d);
+  });
+  // Add custom chord button
+  const add = document.createElement('div');
+  add.className = 'chord-card-add';
+  add.title = 'Přidat vlastní akord';
+  add.innerHTML = '<div class="add-icon">＋</div><div>Vlastní akord</div>';
+  add.onclick = openCustomModal;
+  c.appendChild(add);
+}
+
+function addChord(k) {
+  seq.push(k);
+  renderSeq();
+  document.getElementById('start-btn').disabled = seq.length < 1;
+}
+
+function deleteChord(k) {
+  delete CHORDS[k];
+  // also remove from sequence
+  seq = seq.filter(s => s !== k);
+  renderSeq();
+  document.getElementById('start-btn').disabled = seq.length < 1;
+  renderCards();
+  renderInsertBtns();
+}
+function removeChord(i) {
+  seq.splice(i, 1);
+  renderSeq();
+  document.getElementById('start-btn').disabled = seq.length < 1;
+}
+function clearSeq() {
+  seq = [];
+  renderSeq();
+  document.getElementById('start-btn').disabled = true;
+}
+
+function renderSeq() {
+  const el = document.getElementById('seq-list');
+  if (!seq.length) { el.innerHTML = '<span class="seq-empty">Klikni na akord výše pro přidání...</span>'; return; }
+  el.innerHTML = '';
+  seq.forEach((k, i) => {
+    const d = document.createElement('div');
+    d.className = 'seq-item';
+    d.innerHTML = `<span>${CHORDS[k] ? CHORDS[k].name : k}</span><button class="rx" title="Odebrat">×</button>`;
+    d.querySelector('.rx').onclick = (e) => { e.stopPropagation(); removeChord(i); };
+    el.appendChild(d);
+  });
+}
+
+function updateTiming() {
+  const v = parseInt(document.getElementById('secs-slider').value);
+  let label;
+  if (v < 60) label = v + ' s';
+  else if (v === 60) label = '1 min';
+  else label = '1 min ' + (v - 60) + ' s';
+  document.getElementById('secs-val').textContent = label;
+}
+
+// ===================== AUDIO =====================
+let actx = null;
+function playTick(accent) {
+  if (!document.getElementById('metro-cb').checked) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator();
+    const g = actx.createGain();
+    o.connect(g); g.connect(actx.destination);
+    o.frequency.value = accent ? 1050 : 700;
+    g.gain.setValueAtTime(accent ? 0.45 : 0.25, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + 0.07);
+    o.start(actx.currentTime);
+    o.stop(actx.currentTime + 0.07);
+  } catch(e) {}
+}
+
+// Karplus-Strong plucked string synthesis
+function generatePluck(sampleRate, freq, duration) {
+  const N = Math.max(2, Math.round(sampleRate / freq));
+  const numSamples = Math.floor(sampleRate * duration);
+  const out = new Float32Array(numSamples);
+  const delay = new Float32Array(N);
+  // Triangular excitation mixed with noise – emphasises the fundamental over
+  // high harmonics, giving a warmer, less metallic initial attack
+  for (let i = 0; i < N; i++) {
+    const t = i / N;
+    const tri = (t < 0.5 ? 2 * t : 2 * (1 - t)) * 2 - 1; // -1..+1 triangle
+    delay[i] = tri * 0.65 + (Math.random() * 2 - 1) * 0.35;
+  }
+  // blend = 0.4993: higher value (closer to 0.5) damps high harmonics faster
+  const blend = 0.4993;
+  for (let i = 0; i < numSamples; i++) {
+    const idx = i % N;
+    out[i] = delay[idx];
+    delay[idx] = blend * (delay[idx] + delay[(idx + 1) % N]);
+  }
+  return out;
+}
+
+function playChordSound(key, force) {
+  if (!force && !document.getElementById('chord-sound-cb').checked) return;
+  const freqs = CHORD_FREQS[key];
+  if (!freqs) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+    const duration = 4.0;
+    const strumDelay = 0.028;
+
+    // Shared warmth chain: body resonance → high-cut → gentle compressor
+    const warmth = actx.createBiquadFilter();
+    warmth.type = 'lowshelf';
+    warmth.frequency.value = 320;
+    warmth.gain.value = 6;          // boost body/warmth
+
+    const lpf = actx.createBiquadFilter();
+    lpf.type = 'lowpass';
+    lpf.frequency.value = 3000;     // cut harsh highs
+    lpf.Q.value = 0.6;
+
+    const comp = actx.createDynamicsCompressor();
+    comp.threshold.value = -14;
+    comp.knee.value = 8;
+    comp.ratio.value = 4;
+    comp.attack.value = 0.004;
+    comp.release.value = 0.3;
+
+    warmth.connect(lpf);
+    lpf.connect(comp);
+    comp.connect(actx.destination);
+
+    freqs.forEach((freq, i) => {
+      const samples = generatePluck(actx.sampleRate, freq, duration);
+      const ab = actx.createBuffer(1, samples.length, actx.sampleRate);
+      ab.getChannelData(0).set(samples);
+      const src = actx.createBufferSource();
+      src.buffer = ab;
+      const g = actx.createGain();
+      const t0 = actx.currentTime + i * strumDelay;
+      g.gain.setValueAtTime(0.30, t0);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+      src.connect(g);
+      g.connect(warmth);
+      src.start(t0);
+    });
+  } catch(e) {}
+}
+
+// ===================== PRACTICE =====================
+let ps = null;   // practice state
+let timer = null;
+
+function advanceChord() {
+  if (!ps) return;
+  ps.idx++;
+  ps.elapsed = 0; ps.lastBeat = -1;
+  if (ps.idx >= ps.seq.length) {
+    if (ps.loop) { ps.idx = 0; ps.loopN++; }
+    else { stopPractice(); return; }
+  }
+  renderPractice(true);
+}
+
+function startPractice() {
+  const secs   = parseInt(document.getElementById('secs-slider').value);
+  const beats  = parseInt(document.getElementById('beats-sel').value);
+  const loop   = document.getElementById('loop-cb').checked;
+  const manual = document.getElementById('manual-cb').checked;
+  const rawText = document.getElementById('song-text').value.trim();
+
+  ps = {
+    seq: [...seq],
+    idx: 0, loopN: 1,
+    secs, beats,
+    elapsed: 0,
+    beatInterval: secs / beats,
+    lastBeat: -1,
+    paused: false, loop,
+    manual,
+    song: rawText ? parseChordText(rawText) : null
+  };
+
+  document.getElementById('setup-panel').style.display = 'none';
+  document.getElementById('practice-panel').style.display = 'block';
+  renderPractice(true);
+  startTimer();
+}
+
+function stopPractice() {
+  clearInterval(timer); timer = null; ps = null;
+  document.getElementById('practice-panel').style.display = 'none';
+  document.getElementById('setup-panel').style.display = 'block';
+}
+
+function togglePause() {
+  if (!ps) return;
+  ps.paused = !ps.paused;
+  document.getElementById('pause-btn').textContent = ps.paused ? '▶\u00a0 Pokračovat' : '⏸\u00a0 Pauza';
+}
+
+function startTimer() {
+  const TICK = 80;
+  timer = setInterval(() => {
+    if (!ps || ps.paused) return;
+    ps.elapsed += TICK / 1000;
+
+    // Beat
+    const beat = Math.floor(ps.elapsed / ps.beatInterval);
+    if (beat !== ps.lastBeat) {
+      ps.lastBeat = beat;
+      const inBar = beat % ps.beats;
+      playTick(inBar === 0);
+      renderBeats(inBar);
+    }
+
+    // Progress bar
+    document.getElementById('prog-bar').style.width = Math.min(ps.elapsed / ps.secs * 100, 100) + '%';
+
+    if (ps.elapsed >= ps.secs && !ps.manual) {
+      advanceChord();
+    }
+  }, TICK);
+}
+
+function renderPractice(newChord) {
+  const curKey = ps.seq[ps.idx];
+  const nxtKey = ps.seq[(ps.idx + 1) % ps.seq.length];
+  const curName  = CHORDS[curKey]  ? CHORDS[curKey].name  : curKey;
+  const curNotes = CHORDS[curKey]  ? CHORDS[curKey].notes : '';
+  const nxtName  = CHORDS[nxtKey]  ? CHORDS[nxtKey].name  : nxtKey;
+  const nxtNotes = CHORDS[nxtKey]  ? CHORDS[nxtKey].notes : '';
+
+  // Info
+  document.getElementById('prac-info').textContent =
+    (ps.loop ? `Smyčka ${ps.loopN}  ·  ` : '') + `Akord ${ps.idx + 1} / ${ps.seq.length}`;
+
+  // Dots
+  document.getElementById('seq-dots').innerHTML =
+    ps.seq.map((k, i) => {
+      const nm = CHORDS[k] ? CHORDS[k].name : k;
+      return `<div class="sd${i < ps.idx ? ' done' : i === ps.idx ? ' active' : ''}" title="${nm}"></div>`;
+    }).join('');
+
+  // Current chord
+  const ce = document.getElementById('cur-chord');
+  ce.innerHTML = `<div class="ct">${curName}</div><div class="cs">${curNotes}</div>${drawChord(curKey, true)}`;
+  if (newChord) {
+    ce.classList.remove('flash'); void ce.offsetWidth; ce.classList.add('flash');
+    playChordSound(curKey);
+  }
+
+  // Next chord
+  document.getElementById('nxt-chord').innerHTML =
+    `<div class="ct">${nxtName}</div><div class="cs">${nxtNotes}</div>${drawChord(nxtKey, false)}`;
+
+  // Song display
+  const sd = document.getElementById('song-display');
+  if (ps.song) {
+    sd.style.display = 'block';
+    // find chord index in song matching ps.idx
+    let ci = -1, nextCi = -1, count = 0;
+    ps.song.forEach(line => line.forEach(seg => {
+      if (seg.chord !== null) {
+        if (count === ps.idx) ci = seg.ci;
+        if (count === (ps.idx + 1) % ps.seq.length) nextCi = seg.ci;
+        count++;
+      }
+    }));
+    document.getElementById('song-content').innerHTML = renderChordChart(ps.song, ci, nextCi);
+    setTimeout(() => {
+      const act = document.querySelector('#song-content .seg.active');
+      if (act) act.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 50);
+  } else {
+    sd.style.display = 'none';
+  }
+
+  // KB hint
+  const kbh = document.getElementById('kb-hint');
+  if (ps.manual) {
+    kbh.innerHTML = 'Klávesnice: <b>Mezerník / →</b> = další akord &nbsp;|&nbsp; <b>Esc</b> = zastavit';
+  } else {
+    kbh.innerHTML = 'Klávesnice: <b>Mezerník</b> = pauza &nbsp;|&nbsp; <b>Esc</b> = zastavit';
+  }
+
+  // Beats
+  renderBeats(0);
+  document.getElementById('prog-bar').style.width = '0%';
+}
+
+function renderBeats(active) {
+  if (!ps) return;
+  document.getElementById('beat-row').innerHTML =
+    Array.from({length: ps.beats}, (_, i) =>
+      `<div class="bd${i === active ? ' active' : ''}"></div>`
+    ).join('');
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.key === ' ' && ps) {
+    e.preventDefault();
+    if (ps.manual) advanceChord(); else togglePause();
+  }
+  if ((e.key === 'ArrowRight' || e.key === 'Enter') && ps && ps.manual) {
+    e.preventDefault(); advanceChord();
+  }
+  if (e.key === 'Escape' && ps) stopPractice();
+});
+
+// Init
+renderCards();
+updateTiming();
+renderInsertBtns();
+</script>
+</body>
+</html>
