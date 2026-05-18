@@ -24,11 +24,6 @@ export const Route = createRootRoute({
       }),
     ],
     links: [
-      { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
-      { rel: 'preconnect', href: 'https://fonts.gstatic.com' },
-      { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=optional' },
-      { rel: 'preload', href: appCss, as: 'style' },
-      { rel: 'stylesheet', href: appCss },
       { rel: 'icon', href: '/favicon.ico' },
     ],
   }),
@@ -41,6 +36,11 @@ function RootDocument({ children }: { children: React.ReactNode }) {
   return (
     <html lang="cs">
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" />
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=optional" />
+        <link rel="preload" href={appCss} as="style" />
+        <link rel="stylesheet" href={appCss} />
         <HeadContent />
       </head>
       <body className="bg-stone-50 text-stone-800 h-full flex flex-col">
