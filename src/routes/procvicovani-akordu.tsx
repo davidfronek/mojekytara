@@ -117,6 +117,8 @@ function ProcvicovaniPage() {
     setLiveChord(null)
     setMicListening(true)
     setCorrectCount(0)
+    cleanupMic()
+    setMicCheck(false)
   }, [])
 
   // ===== Advance chord (used by timer and manual mode) =====
@@ -183,6 +185,8 @@ function ProcvicovaniPage() {
     if (micCheck) {
       let correctFrames = 0
       const NEEDED = 3
+      // If sound is off, playWithMicGap won't run — start mic directly (we're in a click handler)
+      if (!chordSoundOn) startMic().catch(() => setMicError(true))
       detectIntervalRef.current = setInterval(() => {
         const scores = getChordScores()
         if (!scores) { correctFrames = 0; setCorrectCount(0); setLiveChord(null); return }
@@ -248,13 +252,10 @@ function ProcvicovaniPage() {
     return () => window.removeEventListener('keydown', handler)
   }, [doAdvanceChord, togglePause, stopPractice])
 
-  // ===== Mic lifecycle — start/stop when checkbox changes =====
+  // ===== Mic lifecycle — cleanup only; mic starts during practice via playWithMicGap =====
   useEffect(() => {
-    if (micCheck) {
-      setMicError(false)
-      startMic().catch(() => setMicError(true))
-    } else {
-      stopMic()
+    if (!micCheck) {
+      cleanupMic()
       setLiveChord(null)
     }
   }, [micCheck])

@@ -7,6 +7,7 @@ let micCtx: AudioContext | null = null
 let micStream: MediaStream | null = null
 let micSrc: MediaStreamAudioSourceNode | null = null
 let analyser: AnalyserNode | null = null
+let micGapTimers: ReturnType<typeof setTimeout>[] = []
 
 const FFT_SIZE = 8192
 
@@ -52,8 +53,10 @@ export function stopMic(): void {
   if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null }
 }
 
-/** Close the mic AudioContext. Call ONLY on component unmount. */
+/** Close the mic AudioContext and cancel any pending mic-gap restarts. */
 export function cleanupMic(): void {
+  micGapTimers.forEach(t => clearTimeout(t))
+  micGapTimers = []
   stopMic()
   analyser = null
   if (micCtx) { void micCtx.close(); micCtx = null }
@@ -73,6 +76,9 @@ export function playWithMicGap(
   restartMs = 5000,
   onRestart?: () => void,
 ): void {
+  // Check BEFORE clearing — micStream is nulled below
+  const hadActiveMic = !!(micStream)
+
   // Fully close mic AND its AudioContext so Chrome releases the OS capture device.
   // Just stopping tracks is sometimes not enough for Windows to un-duck.
   if (micSrc) { micSrc.disconnect(); micSrc = null }
@@ -82,15 +88,21 @@ export function playWithMicGap(
   micCtx = null
   if (oldCtx) void oldCtx.close()
 
-  // Edge needs more time to release Communications Mode than Chrome
-  const isEdge = /Edg\//.test(navigator.userAgent)
-  const UN_DUCK = isEdge ? 3500 : 1500
-  // Ensure mic restarts well after the chord has been heard
-  const effectiveRestart = Math.max(restartMs, UN_DUCK + 3500)
-  setTimeout(() => playCallback(), UN_DUCK)
+  // Only wait for Windows to un-duck if the mic was actually running.
+  // If already cleaned up (e.g. first chord after stopPractice), play immediately.
+  const UN_DUCK = hadActiveMic ? 5000 : 0
+  // Ensure mic restarts well after the chord has been heard (at least 3 s after chord plays)
+  const effectiveRestart = Math.max(restartMs, UN_DUCK + 3000)
+
+  const t1 = setTimeout(() => {
+    micGapTimers = micGapTimers.filter(t => t !== t1)
+    playCallback()
+  }, UN_DUCK)
+  micGapTimers.push(t1)
 
   // Rebuild mic context and restart detection after chord has been heard
-  setTimeout(async () => {
+  const t2 = setTimeout(async () => {
+    micGapTimers = micGapTimers.filter(t => t !== t2)
     try {
       // AudioContext creation works after any prior user gesture on the page
       micCtx = new AudioContext()
@@ -109,6 +121,7 @@ export function playWithMicGap(
       onRestart?.()
     } catch { /* getUserMedia permission already granted — failure here is rare */ }
   }, effectiveRestart)
+  micGapTimers.push(t2)
 }
 
 /** Returns the peak dB magnitude near a target frequency (±1.5% tuning tolerance). */
