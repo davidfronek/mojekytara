@@ -81,6 +81,29 @@ function generatePluck(sampleRate: number, freq: number, duration: number): Floa
   return out
 }
 
+/** Short two-note ascending chime: signals that mic is ready to listen. */
+export function playReadyChime(): void {
+  try {
+    const ctx = getAudioContext()
+    const notes = [880, 1320] // A5 → E6
+    notes.forEach((freq, i) => {
+      const o = ctx.createOscillator()
+      const g = ctx.createGain()
+      o.type = 'sine'
+      o.connect(g)
+      g.connect(ctx.destination)
+      const t = ctx.currentTime + i * 0.12
+      o.frequency.value = freq
+      g.gain.setValueAtTime(0, t)
+      g.gain.linearRampToValueAtTime(0.18, t + 0.01)
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.18)
+      o.start(t)
+      o.stop(t + 0.18)
+    })
+  } catch (_) {}
+}
+
+
 export function playTick(accent: boolean): void {
   try {
     const ctx = getAudioContext()

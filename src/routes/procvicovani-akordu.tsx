@@ -1,7 +1,7 @@
 ﻿import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { CHORDS, EXTRA_CHORDS, ChordData, StringPosition, drawChord, CHORD_FREQS } from '~/utils/chords'
-import { playTick, playChordSound } from '~/utils/audio'
+import { playTick, playChordSound, playReadyChime } from '~/utils/audio'
 import { startMic, stopMic, cleanupMic, getChordScores, playWithMicGap } from '~/utils/chordDetector'
 import { seo } from '~/utils/seo'
 
@@ -143,10 +143,13 @@ function ProcvicovaniPage() {
     if (ps.chordSound) {
       if (ps.micCheck) {
         setMicListening(false)
-        playWithMicGap(() => playChordSound(ps.seq[ps.idx]), 5000, () => setMicListening(true))
+        playWithMicGap(() => playChordSound(ps.seq[ps.idx]), 5000, () => { setMicListening(true); playReadyChime() })
       } else {
         playChordSound(ps.seq[ps.idx])
       }
+    } else if (ps.micCheck) {
+      // No chord sound — use mic gap just to restart mic cleanly
+      playWithMicGap(() => {}, 3000, () => { setMicListening(true); playReadyChime() })
     }
   }, [])
 
@@ -176,7 +179,7 @@ function ProcvicovaniPage() {
     if (chordSoundOn) {
       if (micCheck) {
         setMicListening(false)
-        playWithMicGap(() => playChordSound(seq[0]), 5000, () => setMicListening(true))
+        playWithMicGap(() => playChordSound(seq[0]), 5000, () => { setMicListening(true); playReadyChime() })
       } else {
         playChordSound(seq[0])
       }
@@ -186,7 +189,7 @@ function ProcvicovaniPage() {
       let correctFrames = 0
       const NEEDED = 3
       // If sound is off, playWithMicGap won't run — start mic directly (we're in a click handler)
-      if (!chordSoundOn) startMic().catch(() => setMicError(true))
+      if (!chordSoundOn) startMic().then(() => playReadyChime()).catch(() => setMicError(true))
       detectIntervalRef.current = setInterval(() => {
         const scores = getChordScores()
         if (!scores) { correctFrames = 0; setCorrectCount(0); setLiveChord(null); return }
@@ -210,17 +213,22 @@ function ProcvicovaniPage() {
       const ps = psRef.current
       if (!ps || ps.paused) return
       ps.elapsed += TICK / 1000
+
+      // Advance first — prevents double accent tick at chord boundary
+      if (ps.elapsed >= ps.secs && !ps.manual && !ps.micCheck) {
+        doAdvanceChord(ps)
+        setProgress(0)
+        return  // beat 0 accent fires on next tick (80 ms later, imperceptible)
+      }
+
       const beat = Math.floor(ps.elapsed / ps.beatInterval)
       if (beat !== ps.lastBeat) {
         ps.lastBeat = beat
         const inBar = beat % ps.beats
-        if (ps.metro) playTick(inBar === 0)
+        if (ps.metro && !ps.micCheck) playTick(inBar === 0)
         setActiveBeat(inBar)
       }
       setProgress(Math.min((ps.elapsed / ps.secs) * 100, 100))
-      if (ps.elapsed >= ps.secs && !ps.manual && !ps.micCheck) {
-        doAdvanceChord(ps)
-      }
     }, TICK)
   }, [seq, secs, beats, loop, manual, metro, chordSoundOn, micCheck, doAdvanceChord])
 
@@ -355,14 +363,17 @@ function ProcvicovaniPage() {
         </div>
 
         {/* Progress bar */}
+        {!micCheck && (
         <div className="h-1.5 bg-stone-200 rounded-full overflow-hidden mb-3">
           <div
             className="h-full bg-amber-500 transition-none"
             style={{ width: `${progress}%` }}
           />
         </div>
+        )}
 
         {/* Beat dots */}
+        {!micCheck && (
         <div className="flex gap-2.5 justify-center mb-4">
           {Array.from({ length: beats }, (_, i) => (
             <div
@@ -375,29 +386,48 @@ function ProcvicovaniPage() {
             />
           ))}
         </div>
+        )}
 
         {/* Acoustic check — live display */}
         {micCheck && (
-          <div className="flex justify-center items-center gap-2 mb-5 min-h-7">
+          <div className="flex justify-center mb-5">
             {micError ? (
-              <span className="text-red-500 text-sm">Mikrofon není dostupný</span>
+              <div className="px-4 py-2 rounded-xl bg-red-50 border border-red-200 text-red-500 text-sm">
+                Mikrofon není dostupný
+              </div>
             ) : !micListening ? (
-              <span className="text-stone-500 text-sm">♪ Poslechni si akord…</span>
+              <div className="px-4 py-2 rounded-xl bg-stone-100 border border-stone-200 text-stone-500 text-sm flex items-center gap-2">
+                <span>♪</span>
+                <span>Poslechni si akord…</span>
+              </div>
             ) : liveChord ? (
               liveChord === curKey ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-green-600 font-bold text-sm">{allChords[liveChord]?.name ?? liveChord}</span>
-                  <span className="flex gap-1 text-base">
+                <div className="px-5 py-2.5 rounded-xl bg-green-50 border-2 border-green-400 flex items-center gap-3 shadow-sm">
+                  <span className="text-green-600 font-bold text-base">✓ {allChords[liveChord]?.name ?? liveChord}</span>
+                  <span className="flex gap-1.5">
                     {Array.from({ length: 3 }, (_, i) => (
-                      <span key={i} className={i < correctCount ? 'text-green-500' : 'text-stone-300'}>⬤</span>
+                      <span
+                        key={i}
+                        className={`inline-block w-3 h-3 rounded-full transition-all duration-150 ${
+                          i < correctCount
+                            ? 'bg-green-500 scale-110'
+                            : 'bg-stone-200'
+                        }`}
+                      />
                     ))}
                   </span>
                 </div>
               ) : (
-                <span className="text-amber-600 font-bold text-sm">🎙 {allChords[liveChord]?.name ?? liveChord}</span>
+                <div className="px-4 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm font-semibold flex items-center gap-2">
+                  <span>🎙</span>
+                  <span>{allChords[liveChord]?.name ?? liveChord}</span>
+                </div>
               )
             ) : (
-              <span className="text-stone-400 text-sm italic">🎙 Poslouchám…</span>
+              <div className="px-4 py-2 rounded-xl bg-stone-50 border border-stone-200 text-stone-400 text-sm flex items-center gap-2">
+                <span className="animate-pulse">🎙</span>
+                <span>Poslouchám…</span>
+              </div>
             )}
           </div>
         )}
@@ -572,7 +602,6 @@ function ProcvicovaniPage() {
             { val: chordSoundOn, set: setChordSoundOn, label: 'Přehrát akord při každé změně (kytara)' },
             { val: loop, set: setLoop, label: 'Opakovat sekvenci ve smyčce' },
             { val: manual, set: setManual, label: 'Ruční přechod — Mezerník / → = další akord (bez časovače)' },
-            { val: micCheck, set: setMicCheck, label: 'Akustická kontrola zahraného akordu 🎙 (mikrofon — spustí se hned při zaškrtnutí)' },
           ].map(({ val, set, label }) => (
             <label key={label} className="flex items-center gap-2.5 cursor-pointer group">
               <input
@@ -584,6 +613,31 @@ function ProcvicovaniPage() {
               <span className="text-sm text-stone-600 group-hover:text-stone-900 transition-colors">{label}</span>
             </label>
           ))}
+        </div>
+      </section>
+
+      {/* 4. Acoustic check */}
+      <section className="mb-8">
+        <h2 className="text-xs font-bold text-amber-600 uppercase tracking-widest mb-4 pb-2 border-b border-stone-200">
+          4. Akustická kontrola
+        </h2>
+        <div className="space-y-3">
+          <label className="flex items-center gap-2.5 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={micCheck}
+              onChange={(e) => setMicCheck(e.target.checked)}
+              className="w-4 h-4 accent-amber-500 cursor-pointer"
+            />
+            <span className="text-sm text-stone-600 group-hover:text-stone-900 transition-colors">
+              Detekovat zahraný akord mikrofonem 🎙
+            </span>
+          </label>
+          {micCheck && (
+            <p className="text-xs text-stone-400 ml-6.5">
+              Mikrofon se spustí při zahájení cvičení. Akord postupuje automaticky po správném zahraní (3× detekce).
+            </p>
+          )}
         </div>
       </section>
 
