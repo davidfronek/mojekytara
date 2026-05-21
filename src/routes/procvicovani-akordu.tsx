@@ -1,7 +1,8 @@
 ﻿import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { CHORDS, EXTRA_CHORDS, ChordData, StringPosition, drawChord } from '~/utils/chords'
+import { CHORDS, EXTRA_CHORDS, ChordData, StringPosition, drawChord, CHORD_FREQS } from '~/utils/chords'
 import { playTick, playChordSound } from '~/utils/audio'
+import { startMic, stopMic, cleanupMic, getChordScores, playWithMicGap } from '~/utils/chordDetector'
 import { seo } from '~/utils/seo'
 
 export const Route = createFileRoute('/procvicovani-akordu')({
@@ -29,6 +30,7 @@ type PracticeRef = {
   manual: boolean
   metro: boolean
   chordSound: boolean
+  micCheck: boolean
   startedAt: number
 }
 
@@ -74,6 +76,14 @@ function ProcvicovaniPage() {
 
   const psRef = useRef<PracticeRef | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const detectIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Mic / acoustic check
+  const [micCheck, setMicCheck] = useState(false)
+  const [micError, setMicError] = useState(false)
+  const [liveChord, setLiveChord] = useState<string | null>(null)
+  const [micListening, setMicListening] = useState(true) // false = gap: chord playing, mic off
+  const [correctCount, setCorrectCount] = useState(0)    // how many consecutive correct frames
 
   // Load basket from /akordy page
   useEffect(() => {
@@ -96,8 +106,7 @@ function ProcvicovaniPage() {
   // ===== Stop practice =====
   const stopPractice = useCallback(() => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
-    if (psRef.current) {
-    }
+    if (detectIntervalRef.current) { clearInterval(detectIntervalRef.current); detectIntervalRef.current = null }
     psRef.current = null
     setIsActive(false)
     setIsPaused(false)
@@ -105,6 +114,9 @@ function ProcvicovaniPage() {
     setActiveBeat(0)
     setCurrentIdx(0)
     setCurrentLoopN(1)
+    setLiveChord(null)
+    setMicListening(true)
+    setCorrectCount(0)
   }, [])
 
   // ===== Advance chord (used by timer and manual mode) =====
@@ -126,7 +138,14 @@ function ProcvicovaniPage() {
     }
     setCurrentIdx(ps.idx)
     setFlashKey((k) => k + 1)
-    if (ps.chordSound) playChordSound(ps.seq[ps.idx])
+    if (ps.chordSound) {
+      if (ps.micCheck) {
+        setMicListening(false)
+        playWithMicGap(() => playChordSound(ps.seq[ps.idx]), 5000, () => setMicListening(true))
+      } else {
+        playChordSound(ps.seq[ps.idx])
+      }
+    }
   }, [])
 
   // ===== Start practice =====
@@ -140,6 +159,7 @@ function ProcvicovaniPage() {
       lastBeat: -1,
       paused: false, loop, manual,
       metro, chordSound: chordSoundOn,
+      micCheck,
       startedAt: Date.now(),
     }
     psRef.current = ps
@@ -151,7 +171,35 @@ function ProcvicovaniPage() {
     setIsActive(true)
     setIsPaused(false)
     setFlashKey((k) => k + 1)
-    if (chordSoundOn) playChordSound(seq[0])
+    if (chordSoundOn) {
+      if (micCheck) {
+        setMicListening(false)
+        playWithMicGap(() => playChordSound(seq[0]), 5000, () => setMicListening(true))
+      } else {
+        playChordSound(seq[0])
+      }
+    }
+
+    if (micCheck) {
+      let correctFrames = 0
+      const NEEDED = 3
+      detectIntervalRef.current = setInterval(() => {
+        const scores = getChordScores()
+        if (!scores) { correctFrames = 0; setCorrectCount(0); setLiveChord(null); return }
+        const [bestKey] = Object.entries(scores).sort((a, b) => b[1] - a[1])[0]
+        setLiveChord(bestKey)
+        const cur = psRef.current
+        if (!cur) return
+        if (bestKey === cur.seq[cur.idx]) {
+          correctFrames++
+          setCorrectCount(correctFrames)
+          if (correctFrames >= NEEDED) { correctFrames = 0; setCorrectCount(0); doAdvanceChord(cur) }
+        } else {
+          correctFrames = 0
+          setCorrectCount(0)
+        }
+      }, 250)
+    }
 
     const TICK = 80
     timerRef.current = setInterval(() => {
@@ -166,11 +214,11 @@ function ProcvicovaniPage() {
         setActiveBeat(inBar)
       }
       setProgress(Math.min((ps.elapsed / ps.secs) * 100, 100))
-      if (ps.elapsed >= ps.secs && !ps.manual) {
+      if (ps.elapsed >= ps.secs && !ps.manual && !ps.micCheck) {
         doAdvanceChord(ps)
       }
     }, TICK)
-  }, [seq, secs, beats, loop, manual, metro, chordSoundOn, doAdvanceChord])
+  }, [seq, secs, beats, loop, manual, metro, chordSoundOn, micCheck, doAdvanceChord])
 
   // ===== Toggle pause =====
   const togglePause = useCallback(() => {
@@ -200,8 +248,23 @@ function ProcvicovaniPage() {
     return () => window.removeEventListener('keydown', handler)
   }, [doAdvanceChord, togglePause, stopPractice])
 
+  // ===== Mic lifecycle — start/stop when checkbox changes =====
+  useEffect(() => {
+    if (micCheck) {
+      setMicError(false)
+      startMic().catch(() => setMicError(true))
+    } else {
+      stopMic()
+      setLiveChord(null)
+    }
+  }, [micCheck])
+
   // Cleanup on unmount
-  useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current) }, [])
+  useEffect(() => () => {
+    if (timerRef.current) clearInterval(timerRef.current)
+    if (detectIntervalRef.current) clearInterval(detectIntervalRef.current)
+    cleanupMic()
+  }, [])
 
   // ===== Derived values =====
   const curKey = practiceSeq[currentIdx] ?? ''
@@ -299,7 +362,7 @@ function ProcvicovaniPage() {
         </div>
 
         {/* Beat dots */}
-        <div className="flex gap-2.5 justify-center mb-5">
+        <div className="flex gap-2.5 justify-center mb-4">
           {Array.from({ length: beats }, (_, i) => (
             <div
               key={i}
@@ -311,6 +374,32 @@ function ProcvicovaniPage() {
             />
           ))}
         </div>
+
+        {/* Acoustic check — live display */}
+        {micCheck && (
+          <div className="flex justify-center items-center gap-2 mb-5 min-h-7">
+            {micError ? (
+              <span className="text-red-500 text-sm">Mikrofon není dostupný</span>
+            ) : !micListening ? (
+              <span className="text-stone-500 text-sm">♪ Poslechni si akord…</span>
+            ) : liveChord ? (
+              liveChord === curKey ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-green-600 font-bold text-sm">{allChords[liveChord]?.name ?? liveChord}</span>
+                  <span className="flex gap-1 text-base">
+                    {Array.from({ length: 3 }, (_, i) => (
+                      <span key={i} className={i < correctCount ? 'text-green-500' : 'text-stone-300'}>⬤</span>
+                    ))}
+                  </span>
+                </div>
+              ) : (
+                <span className="text-amber-600 font-bold text-sm">🎙 {allChords[liveChord]?.name ?? liveChord}</span>
+              )
+            ) : (
+              <span className="text-stone-400 text-sm italic">🎙 Poslouchám…</span>
+            )}
+          </div>
+        )}
 
         {/* Current + Next chord */}
         <div className="grid grid-cols-[1fr_40px_220px] gap-4 items-center mb-6">
@@ -482,6 +571,7 @@ function ProcvicovaniPage() {
             { val: chordSoundOn, set: setChordSoundOn, label: 'Přehrát akord při každé změně (kytara)' },
             { val: loop, set: setLoop, label: 'Opakovat sekvenci ve smyčce' },
             { val: manual, set: setManual, label: 'Ruční přechod — Mezerník / → = další akord (bez časovače)' },
+            { val: micCheck, set: setMicCheck, label: 'Akustická kontrola zahraného akordu 🎙 (mikrofon — spustí se hned při zaškrtnutí)' },
           ].map(({ val, set, label }) => (
             <label key={label} className="flex items-center gap-2.5 cursor-pointer group">
               <input

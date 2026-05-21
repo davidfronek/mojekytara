@@ -3,7 +3,7 @@ import { CHORD_FREQS, ChordData } from './chords'
 let actx: AudioContext | null = null
 let roomIR: AudioBuffer | null = null
 
-function getAudioContext(): AudioContext {
+export function getAudioContext(): AudioContext {
   if (!actx) {
     actx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
   }
@@ -152,8 +152,10 @@ export function playChordSound(key: string, force = false, chordData?: ChordData
     wetGain.gain.value = 0.20
     const dryGain = ctx.createGain()
     dryGain.gain.value = 0.80
+    const masterGain = ctx.createGain()
+    masterGain.gain.value = 2.5
 
-    // Signal chain: hpf → body → midCut → warmth → lpf → comp → dry + wet reverb
+    // Signal chain: hpf → body → midCut → warmth → lpf → comp → dry + wet reverb → master
     hpf.connect(body)
     body.connect(midCut)
     midCut.connect(warmth)
@@ -162,8 +164,9 @@ export function playChordSound(key: string, force = false, chordData?: ChordData
     comp.connect(dryGain)
     comp.connect(convolver)
     convolver.connect(wetGain)
-    dryGain.connect(ctx.destination)
-    wetGain.connect(ctx.destination)
+    dryGain.connect(masterGain)
+    wetGain.connect(masterGain)
+    masterGain.connect(ctx.destination)
 
     freqs.forEach((freq, i) => {
       const samples = generatePluck(ctx.sampleRate, freq, duration)
