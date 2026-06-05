@@ -15,10 +15,19 @@ export const Route = createFileRoute('/akordy')({
 })
 
 const ALL_CHORDS = { ...CHORDS, ...EXTRA_CHORDS }
+const BARRE_KEYS = new Set([
+  'F', 'Fm', 'Gm',
+  'Bb', 'B',
+  'F#', 'F#m',
+  'Ab', 'Abm',
+  'Bm', 'Bbm',
+  'Cm', 'C#m',
+])
 
 const groups = [
-  { label: 'Dur', keys: ['G', 'A', 'C', 'D', 'E', 'F', 'Bb', 'B', 'F#', 'Ab'] },
-  { label: 'Mol', keys: ['Em', 'Am', 'Dm', 'Fm', 'Gm', 'Bm', 'Cm', 'F#m', 'Abm', 'Bbm', 'C#m'] },
+  { label: 'Baré akordy', keys: ['F', 'Fm', 'Gm', 'Bb', 'B', 'F#', 'F#m', 'Ab', 'Abm', 'Bm', 'Bbm', 'Cm', 'C#m'] },
+  { label: 'Dur', keys: ['G', 'A', 'C', 'D', 'E'] },
+  { label: 'Mol', keys: ['Em', 'Am', 'Dm'] },
   { label: 'Dominantní septimové', keys: ['G7', 'A7', 'C7', 'D7', 'E7', 'F7', 'F#7', 'B7'] },
   { label: 'Molové septimové', keys: ['Am7', 'Em7', 'Dm7'] },
   { label: 'Major 7', keys: ['Fmaj7'] },
@@ -46,15 +55,23 @@ function ChordCard({
 }) {
   const ch = ALL_CHORDS[chordKey]
   if (!ch) return null
+  const isBarre = BARRE_KEYS.has(chordKey)
   return (
     <div
       onClick={selectionMode ? () => onToggleSelect(chordKey) : undefined}
-      className={`group relative bg-white rounded-2xl p-5 text-center w-full shadow-sm transition-all duration-200 print:break-inside-avoid ${
+      className={`group relative rounded-2xl p-5 text-center w-full shadow-sm transition-all duration-200 print:break-inside-avoid ${
+        isBarre ? 'bg-amber-50/70' : 'bg-white'
+      } ${
         selectionMode
           ? `cursor-pointer border-2 ${selected ? 'border-amber-400 ring-2 ring-amber-200' : 'border-stone-200 hover:border-amber-300'}`
-          : 'border border-stone-200 hover:border-amber-400 group-hover/cards:opacity-50 group-hover/cards:blur-[1px] group-hover/cards:scale-95 hover:!opacity-100 hover:!blur-none hover:scale-[1.22] hover:shadow-2xl hover:z-10'
+          : `border ${isBarre ? 'border-amber-300/80 hover:border-amber-500' : 'border-stone-200 hover:border-amber-400'} group-hover/cards:opacity-50 group-hover/cards:blur-[1px] group-hover/cards:scale-95 hover:!opacity-100 hover:!blur-none hover:scale-[1.22] hover:shadow-2xl hover:z-10`
       } print:!opacity-100 print:!blur-none print:!scale-100 print:shadow-none print:border-stone-300 ${dimmed ? 'print:hidden' : ''}`}
     >
+      {isBarre && (
+        <div className="absolute top-2.5 left-2.5 px-1.5 py-0.5 rounded-md bg-amber-500 text-white text-[10px] font-bold tracking-wide">
+          BARÉ
+        </div>
+      )}
       {selectionMode && (
         <div className={`absolute top-2.5 right-2.5 w-5 h-5 rounded-full border-2 flex items-center justify-center text-xs transition-all ${selected ? 'bg-amber-500 border-amber-500 text-white' : 'border-stone-300 bg-white'}`}>
           {selected ? '✓' : ''}
@@ -101,6 +118,7 @@ function ChordCard({
 function AkordyPage() {
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
+  const [barreOnly, setBarreOnly] = useState(false)
   const [printKey, setPrintKey] = useState<string | null>(null)
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set())
@@ -148,11 +166,12 @@ function AkordyPage() {
   const filteredKeys = q
     ? Object.entries(ALL_CHORDS)
         .filter(([key, ch]) =>
-          key.toLowerCase().includes(q) ||
-          ch.name.toLowerCase().includes(q)
+          (key.toLowerCase().includes(q) || ch.name.toLowerCase().includes(q)) &&
+          (!barreOnly || BARRE_KEYS.has(key))
         )
         .map(([key]) => key)
     : null
+  const visibleGroups = barreOnly ? groups.filter((g) => g.label === 'Baré akordy') : groups
 
   const isDimmed = (key: string) =>
     selectionMode && selectedKeys.size > 0 && !selectedKeys.has(key)
@@ -184,6 +203,10 @@ function AkordyPage() {
               <p className="text-stone-500">
                 Klikni na ▶ pro přehrání akordu. Každý diagram ukazuje polohu prstů na krku kytary.
               </p>
+              <div className="mt-2 inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-semibold">
+                <span className="px-1.5 py-0.5 rounded bg-amber-500 text-white text-[10px] font-bold tracking-wide">BARÉ</span>
+                <span>= akord hraný přehmatem (barre)</span>
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-2 print:hidden shrink-0">
               {selectionMode ? (
@@ -239,6 +262,15 @@ function AkordyPage() {
               </button>
             )}
           </div>
+          <label className="inline-flex items-center gap-2 mt-3 text-sm text-stone-600 select-none">
+            <input
+              type="checkbox"
+              checked={barreOnly}
+              onChange={(e) => setBarreOnly(e.target.checked)}
+              className="w-4 h-4 accent-amber-500"
+            />
+            Zobrazit jen baré akordy
+          </label>
         </div>
 
         {filteredKeys ? (
@@ -262,16 +294,17 @@ function AkordyPage() {
             <p className="text-stone-400 text-sm py-10 text-center">Žádný akord nenalezen pro „{query}"</p>
           )
         ) : (
-          groups.map(({ label, keys }) => {
+          visibleGroups.map(({ label, keys }) => {
             const groupHidden = selectionMode && selectedKeys.size > 0 && !keys.some(k => selectedKeys.has(k))
+            const isBarreGroup = label === 'Baré akordy'
             return (
             <section key={label} className={`mb-12 ${groupHidden ? 'print:hidden' : ''}`}>
               <div className="flex items-center gap-3 mb-6">
-                <div className="h-px flex-1 bg-stone-200" />
-                <h2 className="text-xs font-bold text-amber-600 uppercase tracking-widest px-2">
+                <div className={`h-px flex-1 ${isBarreGroup ? 'bg-amber-300' : 'bg-stone-200'}`} />
+                <h2 className={`text-xs font-bold uppercase tracking-widest px-2 ${isBarreGroup ? 'text-amber-700 bg-amber-100 rounded-full py-1' : 'text-amber-600'}`}>
                   {label}
                 </h2>
-                <div className="h-px flex-1 bg-stone-200" />
+                <div className={`h-px flex-1 ${isBarreGroup ? 'bg-amber-300' : 'bg-stone-200'}`} />
               </div>
               <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 pt-3 print:grid-cols-4 print:gap-3 ${selectionMode ? '' : 'group/cards'}`}>
                 {keys.map((key) => (

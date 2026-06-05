@@ -47,10 +47,18 @@ function parseCustomStrings(vals: string[]): StringPosition[] {
 }
 
 const STR_LABELS = ['E', 'A', 'D', 'G', 'B', 'e']
+const BARRE_KEYS = new Set([
+  'F', 'Fm', 'Gm',
+  'Bb', 'B',
+  'F#', 'F#m',
+  'Ab', 'Abm',
+  'Bm', 'Bbm',
+  'Cm', 'C#m',
+])
 
 // ===== Main component =====
 function ProcvicovaniPage() {
-  const [allChords, setAllChords] = useState<Record<string, ChordData>>({ ...CHORDS })
+  const [allChords, setAllChords] = useState<Record<string, ChordData>>({ ...CHORDS, ...EXTRA_CHORDS })
   const [seq, setSeq] = useState<string[]>([])
   const [secs, setSecs] = useState(4)
   const [beats, setBeats] = useState(4)
@@ -58,6 +66,7 @@ function ProcvicovaniPage() {
   const [chordSoundOn, setChordSoundOn] = useState(true)
   const [loop, setLoop] = useState(true)
   const [manual, setManual] = useState(false)
+  const [barreOnly, setBarreOnly] = useState(false)
 
   // Practice UI
   const [isActive, setIsActive] = useState(false)
@@ -73,6 +82,8 @@ function ProcvicovaniPage() {
   const [showCustomModal, setShowCustomModal] = useState(false)
   const [customName, setCustomName] = useState('')
   const [customStrings, setCustomStrings] = useState<string[]>(['x', 'x', '0', '0', '0', '0'])
+
+  const clampSecs = (value: number) => Math.min(120, Math.max(1, value))
 
   const psRef = useRef<PracticeRef | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -280,6 +291,7 @@ function ProcvicovaniPage() {
   const nxtKey = practiceSeq[(currentIdx + 1) % Math.max(practiceSeq.length, 1)] ?? ''
 
   const secsLabel = secs < 60 ? `${secs} s` : secs === 60 ? '1 min' : `1 min ${secs - 60} s`
+  const visibleChordKeys = Object.keys(allChords).filter((key) => !barreOnly || BARRE_KEYS.has(key))
 
   const customPreviewSvg = (() => {
     const key = customName.trim() || '?'
@@ -480,21 +492,44 @@ function ProcvicovaniPage() {
     <div className="max-w-4xl mx-auto px-4 py-8">
       <h1 className="text-3xl font-black text-stone-900 mb-1 tracking-tight">Procvičování akordů</h1>
       <p className="text-stone-500 text-sm mb-8">Vyber akordy, nastav tempo a spusť procvičování.</p>
+      <div className="mb-6 inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-semibold">
+        <span className="px-1.5 py-0.5 rounded bg-amber-500 text-white text-[10px] font-bold tracking-wide">BARÉ</span>
+        <span>= akord hraný přehmatem (barre)</span>
+      </div>
 
       {/* 1. Chord cards */}
       <section className="mb-8">
         <h2 className="text-xs font-bold text-amber-600 uppercase tracking-widest mb-3 pb-2 border-b border-stone-200">
           1. Přidej akordy do sekvence
         </h2>
+        <label className="inline-flex items-center gap-2 mb-3 text-sm text-stone-600 select-none">
+          <input
+            type="checkbox"
+            checked={barreOnly}
+            onChange={(e) => setBarreOnly(e.target.checked)}
+            className="w-4 h-4 accent-amber-500"
+          />
+          Zobrazit jen baré akordy
+        </label>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 pt-3 group/cards">
-          {Object.keys(allChords).map((key) => {
+          {visibleChordKeys.map((key) => {
             const ch = allChords[key]
+            const isBarre = BARRE_KEYS.has(key)
             return (
               <div
                 key={key}
                 onClick={() => setSeq((prev) => [...prev, key])}
-                className="group relative bg-white hover:bg-amber-50 border border-stone-200 hover:border-amber-400 rounded-2xl p-5 text-center w-full cursor-pointer transition-all duration-200 hover:scale-[1.22] hover:shadow-2xl hover:z-10 group-hover/cards:opacity-50 group-hover/cards:blur-[1px] group-hover/cards:scale-95 hover:!opacity-100 hover:!blur-none"
+                className={`group relative rounded-2xl p-5 text-center w-full cursor-pointer transition-all duration-200 hover:scale-[1.22] hover:shadow-2xl hover:z-10 group-hover/cards:opacity-50 group-hover/cards:blur-[1px] group-hover/cards:scale-95 hover:!opacity-100 hover:!blur-none ${
+                  isBarre
+                    ? 'bg-amber-50/70 border border-amber-300/80 hover:border-amber-500'
+                    : 'bg-white hover:bg-amber-50 border border-stone-200 hover:border-amber-400'
+                }`}
               >
+                {isBarre && (
+                  <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded-md bg-amber-500 text-white text-[10px] font-bold tracking-wide">
+                    BARÉ
+                  </div>
+                )}
                 <button
                   onClick={(e) => { e.stopPropagation(); deleteChord(key) }}
                   className="absolute top-2 right-2 hidden group-hover:block text-stone-400 hover:text-red-400 text-xs leading-none px-1"
@@ -577,8 +612,21 @@ function ProcvicovaniPage() {
               min={1}
               max={120}
               value={secs}
-              onChange={(e) => setSecs(Number(e.target.value))}
+              onChange={(e) => setSecs(clampSecs(Number(e.target.value)))}
               className="w-44 accent-amber-500"
+            />
+            <input
+              type="number"
+              min={1}
+              max={120}
+              step={1}
+              value={secs}
+              onChange={(e) => {
+                const next = Number(e.target.value)
+                if (!Number.isNaN(next)) setSecs(clampSecs(next))
+              }}
+              className="w-20 bg-white border border-stone-300 rounded px-2 py-1 text-sm text-stone-800"
+              aria-label="Sekund na akord"
             />
             <span className="text-base font-bold text-stone-900 min-w-14">{secsLabel}</span>
           </div>

@@ -1,4 +1,4 @@
-import { CHORD_FREQS, ChordData } from './chords'
+import { CHORD_FREQS, CHORDS, EXTRA_CHORDS, ChordData } from './chords'
 
 let actx: AudioContext | null = null
 let roomIR: AudioBuffer | null = null
@@ -120,7 +120,8 @@ export function playTick(accent: boolean): void {
 }
 
 export function playChordSound(key: string, force = false, chordData?: ChordData, gainMult = 1.0): void {
-  const freqs = CHORD_FREQS[key] ?? (chordData ? deriveFreqs(chordData) : null)
+  const resolvedChordData = chordData ?? CHORDS[key] ?? EXTRA_CHORDS[key]
+  const freqs = CHORD_FREQS[key] ?? (resolvedChordData ? deriveFreqs(resolvedChordData) : null)
   if (!freqs) return
   try {
     const ctx = getAudioContext()
