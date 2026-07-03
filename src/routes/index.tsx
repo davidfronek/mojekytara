@@ -37,18 +37,18 @@ const features = [
 
 function HomePage() {
   return (
-    <div>
+    <div className="bg-gradient-to-b from-amber-50/60 via-stone-50 to-white">
       {/* Hero */}
-      <div className="bg-gradient-to-br from-stone-900 via-stone-800 to-stone-900">
+      <div className="bg-gradient-to-br from-amber-100 via-stone-100 to-amber-50 border-b border-stone-200">
         <div className="max-w-5xl mx-auto px-6 py-24 text-center">
-          <div className="inline-flex items-center gap-2 bg-amber-500/20 border border-amber-400/30 text-amber-300 text-xs font-bold px-4 py-1.5 rounded-full mb-8 tracking-widest uppercase">
+          <div className="inline-flex items-center gap-2 bg-amber-100 border border-amber-300 text-amber-800 text-xs font-bold px-4 py-1.5 rounded-full mb-8 tracking-widest uppercase">
             Výuka kytary zdarma
           </div>
-          <h1 className="text-5xl sm:text-6xl font-black text-white mb-5 leading-tight tracking-tight">
+          <h1 className="text-5xl sm:text-6xl font-black text-stone-900 mb-5 leading-tight tracking-tight">
             Nauč se hrát<br />
-            <span className="text-amber-400">na kytaru</span>
+            <span className="text-amber-700">na kytaru</span>
           </h1>
-          <p className="text-stone-400 text-lg max-w-lg mx-auto mb-10 leading-relaxed">
+          <p className="text-stone-600 text-lg max-w-lg mx-auto mb-10 leading-relaxed">
             Procvičuj přechody mezi akordy s metronomem, zvukem kytary a textem písně.
           </p>
           <div className="flex flex-wrap gap-3 justify-center">
@@ -60,7 +60,7 @@ function HomePage() {
             </Link>
             <Link
               to="/akordy"
-              className="px-8 py-3.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold rounded-xl text-base transition-all"
+              className="px-8 py-3.5 bg-white hover:bg-stone-50 border border-stone-300 text-stone-700 font-semibold rounded-xl text-base transition-all"
             >
               📖 Slovník akordů
             </Link>
