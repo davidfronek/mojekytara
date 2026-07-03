@@ -41,6 +41,9 @@ function HomePage() {
       {/* Hero */}
       <div className="bg-gradient-to-br from-amber-100 via-stone-100 to-amber-50 border-b border-stone-200">
         <div className="max-w-5xl mx-auto px-6 py-24 text-center">
+          <p className="max-w-3xl mx-auto mb-4 px-4 py-2.5 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 text-sm sm:text-base font-semibold leading-relaxed">
+            Od 6.8. budou z důvodu údržby serveru stránky nedostupné. Zpět budeme v průběhu příštího týdne.
+          </p>
           <div className="inline-flex items-center gap-2 bg-amber-100 border border-amber-300 text-amber-800 text-xs font-bold px-4 py-1.5 rounded-full mb-8 tracking-widest uppercase">
             Výuka kytary zdarma
           </div>
