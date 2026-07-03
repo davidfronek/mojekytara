@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ProcvicovaniPisnicekRouteImport } from './routes/procvicovani-pisnicek'
 import { Route as ProcvicovaniAkorduRouteImport } from './routes/procvicovani-akordu'
+import { Route as MaintenanceRouteImport } from './routes/maintenance'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AkordyRouteImport } from './routes/akordy'
 import { Route as IndexRouteImport } from './routes/index'
@@ -23,6 +24,11 @@ const ProcvicovaniPisnicekRoute = ProcvicovaniPisnicekRouteImport.update({
 const ProcvicovaniAkorduRoute = ProcvicovaniAkorduRouteImport.update({
   id: '/procvicovani-akordu',
   path: '/procvicovani-akordu',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MaintenanceRoute = MaintenanceRouteImport.update({
+  id: '/maintenance',
+  path: '/maintenance',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -45,6 +51,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/akordy': typeof AkordyRoute
   '/login': typeof LoginRoute
+  '/maintenance': typeof MaintenanceRoute
   '/procvicovani-akordu': typeof ProcvicovaniAkorduRoute
   '/procvicovani-pisnicek': typeof ProcvicovaniPisnicekRoute
 }
@@ -52,6 +59,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/akordy': typeof AkordyRoute
   '/login': typeof LoginRoute
+  '/maintenance': typeof MaintenanceRoute
   '/procvicovani-akordu': typeof ProcvicovaniAkorduRoute
   '/procvicovani-pisnicek': typeof ProcvicovaniPisnicekRoute
 }
@@ -60,6 +68,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/akordy': typeof AkordyRoute
   '/login': typeof LoginRoute
+  '/maintenance': typeof MaintenanceRoute
   '/procvicovani-akordu': typeof ProcvicovaniAkorduRoute
   '/procvicovani-pisnicek': typeof ProcvicovaniPisnicekRoute
 }
@@ -69,6 +78,7 @@ export interface FileRouteTypes {
     | '/'
     | '/akordy'
     | '/login'
+    | '/maintenance'
     | '/procvicovani-akordu'
     | '/procvicovani-pisnicek'
   fileRoutesByTo: FileRoutesByTo
@@ -76,6 +86,7 @@ export interface FileRouteTypes {
     | '/'
     | '/akordy'
     | '/login'
+    | '/maintenance'
     | '/procvicovani-akordu'
     | '/procvicovani-pisnicek'
   id:
@@ -83,6 +94,7 @@ export interface FileRouteTypes {
     | '/'
     | '/akordy'
     | '/login'
+    | '/maintenance'
     | '/procvicovani-akordu'
     | '/procvicovani-pisnicek'
   fileRoutesById: FileRoutesById
@@ -91,6 +103,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AkordyRoute: typeof AkordyRoute
   LoginRoute: typeof LoginRoute
+  MaintenanceRoute: typeof MaintenanceRoute
   ProcvicovaniAkorduRoute: typeof ProcvicovaniAkorduRoute
   ProcvicovaniPisnicekRoute: typeof ProcvicovaniPisnicekRoute
 }
@@ -109,6 +122,13 @@ declare module '@tanstack/react-router' {
       path: '/procvicovani-akordu'
       fullPath: '/procvicovani-akordu'
       preLoaderRoute: typeof ProcvicovaniAkorduRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/maintenance': {
+      id: '/maintenance'
+      path: '/maintenance'
+      fullPath: '/maintenance'
+      preLoaderRoute: typeof MaintenanceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -139,6 +159,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AkordyRoute: AkordyRoute,
   LoginRoute: LoginRoute,
+  MaintenanceRoute: MaintenanceRoute,
   ProcvicovaniAkorduRoute: ProcvicovaniAkorduRoute,
   ProcvicovaniPisnicekRoute: ProcvicovaniPisnicekRoute,
 }

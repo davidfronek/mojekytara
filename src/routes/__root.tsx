@@ -4,15 +4,22 @@ import {
   Outlet,
   Scripts,
   createRootRoute,
+  redirect,
 } from '@tanstack/react-router'
 import * as React from 'react'
 import { DefaultCatchBoundary } from '~/components/DefaultCatchBoundary'
 import { NotFound } from '~/components/NotFound'
 import { Nav } from '~/components/Nav'
 import appCss from '~/styles/app.css?url'
+import { isMaintenanceMode } from '~/utils/maintenance'
 import { seo } from '~/utils/seo'
 
 export const Route = createRootRoute({
+  beforeLoad: ({ location }) => {
+    if (isMaintenanceMode && location.pathname !== '/maintenance') {
+      throw redirect({ to: '/maintenance' })
+    }
+  },
   head: () => ({
     meta: [
       { charSet: 'utf-8' },
@@ -44,17 +51,19 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body className="bg-stone-50 text-stone-800 h-full flex flex-col">
-        <Nav />
+        {!isMaintenanceMode && <Nav />}
         <div className="flex-1 overflow-y-scroll flex flex-col">
           <main className="flex-1">
             <Outlet />
           </main>
+          {!isMaintenanceMode && (
           <footer className="border-t border-stone-200 bg-white mt-auto print:hidden">
             <div className="max-w-5xl mx-auto px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-stone-400">
               <span className="font-medium">🎸 mojeKytara — výuka hry na kytaru</span>
               <span>Vytvořeno s ❤️ pro muzikanty</span>
             </div>
           </footer>
+          )}
         </div>
         <Scripts />
       </body>
