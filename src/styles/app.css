@@ -63,6 +63,23 @@
   border-bottom: 1px dashed #a8a29e;
 }
 
+/* ===== Print ===== */
+@page {
+  size: A4 portrait;
+  margin: 10mm;
+}
+@media print {
+  html, body {
+    height: auto;
+    overflow: visible;
+  }
+}
+.print-chord-svg svg {
+  width: var(--print-svg-width, 15cm);
+  height: auto;
+  max-width: 100%;
+}
+
 /* ===== Flash animation ===== */
 @keyframes flash {
   0% { opacity: 0.2; }

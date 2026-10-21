@@ -34,6 +34,60 @@ const groups = [
   { label: 'Sus & add', keys: ['Dsus4', 'Asus4', 'Gsus4', 'Cadd9', 'Gadd9'] },
 ]
 
+type PerPage = 1 | 4 | 12
+
+const PER_PAGE_OPTIONS: { value: PerPage; label: string }[] = [
+  { value: 1, label: '1 akord (celá strana)' },
+  { value: 4, label: '4 akordy (2×2)' },
+  { value: 12, label: '12 akordů (3×4)' },
+]
+
+const PRINT_GRID: Record<PerPage, { cols: number; svgWidth: string; nameSize: string }> = {
+  1: { cols: 1, svgWidth: '15cm', nameSize: '40px' },
+  4: { cols: 2, svgWidth: '8cm', nameSize: '26px' },
+  12: { cols: 3, svgWidth: '5cm', nameSize: '18px' },
+}
+
+function PrintSheets({ keys, perPage }: { keys: string[]; perPage: PerPage }) {
+  const { cols, svgWidth, nameSize } = PRINT_GRID[perPage]
+  const pages: string[][] = []
+  for (let i = 0; i < keys.length; i += perPage) pages.push(keys.slice(i, i + perPage))
+  const rows = perPage / cols
+  return (
+    <div className="hidden print:block bg-white">
+      {pages.map((pageKeys, pi) => (
+        <div
+          key={pi}
+          style={{
+            height: '275mm',
+            display: 'grid',
+            gridTemplateColumns: `repeat(${cols}, 1fr)`,
+            gridTemplateRows: `repeat(${rows}, 1fr)`,
+            breakAfter: pi < pages.length - 1 ? 'page' : 'auto',
+            breakInside: 'avoid',
+            overflow: 'hidden',
+          }}
+        >
+          {pageKeys.map(key => {
+            const ch = ALL_CHORDS[key]
+            return (
+              <div key={key} className="flex flex-col items-center justify-center text-center">
+                <div
+                  className="print-chord-svg"
+                  style={{ ['--print-svg-width' as string]: svgWidth }}
+                  dangerouslySetInnerHTML={{ __html: drawChord(key, true, ALL_CHORDS) }}
+                />
+                <div className="font-black text-stone-900 mt-2" style={{ fontSize: nameSize }}>{ch?.name}</div>
+                <div className="text-stone-500" style={{ fontSize: `calc(${nameSize} * 0.5)` }}>{ch?.notes}</div>
+              </div>
+            )
+          })}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function ChordCard({
   chordKey,
   onPrint,
@@ -119,7 +173,8 @@ function AkordyPage() {
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [barreOnly, setBarreOnly] = useState(false)
-  const [printKey, setPrintKey] = useState<string | null>(null)
+  const [printJob, setPrintJob] = useState<{ keys: string[]; perPage: PerPage } | null>(null)
+  const [perPage, setPerPage] = useState<PerPage>(1)
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set())
   const [practiceBasket, setPracticeBasket] = useState<Set<string>>(new Set())
@@ -140,16 +195,16 @@ function AkordyPage() {
   }, [practiceBasket, navigate])
 
   useEffect(() => {
-    if (printKey !== null) {
+    if (printJob !== null) {
       const t = setTimeout(() => {
         window.print()
-        setPrintKey(null)
+        setPrintJob(null)
       }, 60)
       return () => clearTimeout(t)
     }
-  }, [printKey])
+  }, [printJob])
 
-  const handlePrint = useCallback((key: string) => setPrintKey(key), [])
+  const handlePrint = useCallback((key: string) => setPrintJob({ keys: [key], perPage: 1 }), [])
 
   const handleToggleSelect = useCallback((key: string) => {
     setSelectedKeys(prev => {
@@ -160,7 +215,10 @@ function AkordyPage() {
     })
   }, [])
 
-  const handlePrintSelected = useCallback(() => { window.print() }, [])
+  const handlePrintSelected = useCallback(() => {
+    const keys = Object.keys(ALL_CHORDS).filter(k => selectedKeys.has(k))
+    if (keys.length > 0) setPrintJob({ keys, perPage })
+  }, [selectedKeys, perPage])
 
   const q = query.trim().toLowerCase()
   const filteredKeys = q
@@ -178,24 +236,10 @@ function AkordyPage() {
 
   return (
     <>
-      {/* Single-chord print overlay — hidden on screen, shown in print when printKey is set */}
-      {printKey && (() => {
-        const ch = ALL_CHORDS[printKey]
-        return (
-          <div className="hidden print:flex print:items-center print:justify-center print:min-h-screen print:bg-white">
-            <div className="text-center">
-              <div
-                dangerouslySetInnerHTML={{ __html: drawChord(printKey, true, ALL_CHORDS) }}
-                className="flex justify-center mb-6"
-              />
-              <div className="font-black text-3xl text-stone-900 mt-2">{ch?.name}</div>
-              <div className="text-stone-400 text-base mt-1">{ch?.notes}</div>
-            </div>
-          </div>
-        )
-      })()}
+      {/* Chord print sheets — hidden on screen, shown in print when printJob is set */}
+      {printJob && <PrintSheets keys={printJob.keys} perPage={printJob.perPage} />}
 
-      <div className={`max-w-5xl mx-auto px-6 py-12 ${printKey ? 'print:hidden' : ''} ${practiceBasket.size > 0 ? 'pb-32' : ''}`}>
+      <div className={`max-w-5xl mx-auto px-6 py-12 ${printJob ? 'print:hidden' : ''} ${practiceBasket.size > 0 ? 'pb-32' : ''}`}>
         <div className="mb-8 print:hidden">
           <div className="flex items-start justify-between gap-4 mb-4">
             <div>
@@ -212,6 +256,18 @@ function AkordyPage() {
               {selectionMode ? (
                 <>
                   <span className="text-sm text-stone-500 whitespace-nowrap">{selectedKeys.size} vybráno</span>
+                  <label className="flex items-center gap-1.5 text-sm text-stone-500 whitespace-nowrap">
+                    Na A4:
+                    <select
+                      value={perPage}
+                      onChange={(e) => setPerPage(Number(e.target.value) as PerPage)}
+                      className="px-2 py-1.5 text-sm bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    >
+                      {PER_PAGE_OPTIONS.map(o => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  </label>
                   <button
                     onClick={handlePrintSelected}
                     disabled={selectedKeys.size === 0}

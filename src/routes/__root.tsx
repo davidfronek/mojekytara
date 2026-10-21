@@ -50,10 +50,10 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <link rel="stylesheet" href={appCss} />
         <HeadContent />
       </head>
-      <body className="bg-stone-50 text-stone-800 h-full flex flex-col">
+      <body className="bg-stone-50 text-stone-800       h-full flex flex-col print:block print:h-auto">
         {!isMaintenanceMode && <Nav />}
-        <div className="flex-1 overflow-y-scroll flex flex-col">
-          <main className="flex-1">
+              <div className="flex-1 overflow-y-scroll flex flex-col print:block print:overflow-visible">
+                <main className="flex-1 print:block">
             <Outlet />
           </main>
           {!isMaintenanceMode && (
